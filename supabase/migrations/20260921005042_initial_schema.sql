@@ -1,0 +1,24 @@
+create schema if not exists private;
+revoke all on schema private from public, anon, authenticated;
+create table public.experiences(id uuid primary key default gen_random_uuid(), slug text not null unique, title text not null check(length(title) between 1 and 160), summary text, is_entry boolean not null default false);
+create table public.profiles(user_id uuid primary key references auth.users on delete cascade, display_name text check(length(display_name)<=80), created_at timestamptz not null default now());
+create table private.visitors(id uuid primary key, secret_hash text not null unique check(secret_hash ~ '^[a-f0-9]{64}$'), expires_at timestamptz not null, claimed_user_id uuid references auth.users on delete cascade, created_at timestamptz not null default now());
+create sequence private.preference_order;
+create table public.topic_preferences(id uuid primary key default gen_random_uuid(), experience_id uuid not null references public.experiences, user_id uuid references auth.users on delete cascade, visitor_id uuid references private.visitors on delete cascade, active boolean not null, action_seq bigint not null, revision bigint not null default 1, check ((user_id is null) <> (visitor_id is null)));
+create unique index preferences_user on public.topic_preferences(user_id,experience_id) where user_id is not null;
+create unique index preferences_visitor on public.topic_preferences(visitor_id,experience_id) where visitor_id is not null;
+create table private.mutation_receipts(scope text not null, request_id uuid not null, payload text not null, result jsonb not null, created_at timestamptz not null default now(), primary key(scope,request_id));
+create table private.preference_merges(source_preference_id uuid primary key, target_preference_id uuid not null, claim_request_id uuid not null, created_at timestamptz not null default now());
+alter table public.experiences enable row level security;
+alter table public.profiles enable row level security;
+alter table public.topic_preferences enable row level security;
+alter table private.visitors enable row level security;
+alter table private.mutation_receipts enable row level security;
+alter table private.preference_merges enable row level security;
+-- Catalogue publishing policies will be introduced with versioned content.
+create policy own_profile on public.profiles for all to authenticated using(user_id=(select auth.uid())) with check(user_id=(select auth.uid()));
+create policy own_preferences on public.topic_preferences for select to authenticated using(user_id=(select auth.uid()));
+revoke all on public.experiences, public.profiles, public.topic_preferences from anon, authenticated;
+grant select,insert on public.profiles to authenticated;
+grant update(display_name) on public.profiles to authenticated;
+grant select on public.topic_preferences to authenticated;

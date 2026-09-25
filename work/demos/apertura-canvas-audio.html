@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Osomi · Apertura (demo canvas + audio)</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #f3e9dc; }
+  body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; color: #1d2430; }
+  #track { height: 800vh; }
+  #cv { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .copy { position: fixed; left: 50%; top: 11vh; transform: translateX(-50%); width: min(36rem, calc(100% - 32px)); text-align: center; pointer-events: none; opacity: 0; }
+  .copy h1, .copy h2 { font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif; font-weight: 500; margin: 0 0 .35em; letter-spacing: -.01em; line-height: 1.12; }
+  .copy h1 { font-size: clamp(2.1rem, 6vw, 3.8rem); }
+  .copy h2 { font-size: clamp(1.5rem, 4.2vw, 2.4rem); }
+  .copy p { margin: 0; font-size: 1rem; opacity: .72; }
+  .eyebrow { font-size: .72rem !important; letter-spacing: .2em; text-transform: uppercase; margin-bottom: 1em !important; }
+  .night { color: #f3ead9; }
+  .hud { position: fixed; right: 16px; top: 16px; z-index: 2; }
+  .hud button { font: inherit; font-size: .85rem; border: 1px solid rgba(0,0,0,.15); background: rgba(255,255,255,.78); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border-radius: 999px; padding: .6em 1.1em; cursor: pointer; color: #1d2430; }
+  .hud button:focus-visible { outline: 2px solid #c8743a; outline-offset: 2px; }
+  .brand { position: fixed; left: 16px; top: 22px; z-index: 2; font-size: .72rem; letter-spacing: .2em; text-transform: uppercase; opacity: .55; }
+</style>
+</head>
+<body>
+<div class="brand" id="brand">Osomi · demo</div>
+<div class="hud"><button id="snd" aria-pressed="false">Activar sonido</button></div>
+<canvas id="cv" aria-hidden="true"></canvas>
+
+<div class="copy" id="c0"><p class="eyebrow">Osomi · Mira más de cerca</p><h1>¿Por qué necesito descansar?</h1><p>Explora a tu ritmo. Baja para comenzar.</p></div>
+<div class="copy" id="c1"><h2>A veces el día termina.</h2></div>
+<div class="copy" id="c2"><h2>Las demandas, no.</h2></div>
+<div class="copy night" id="c3"><h2>¿Qué te cuesta dejar en pausa?</h2><p>Por un momento, deja que se alejen.</p></div>
+<div class="copy night" id="c4"><h2>Además de dormir, ¿qué significaría reservar tiempo para dejar de producir?</h2><p>Sigue bajando: el círculo se convierte en la Tierra (P08).</p></div>
+
+<div id="track"></div>
+
+<script>
+const TAU = Math.PI * 2;
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const ramp = (p, a, b) => clamp((p - a) / (b - a));
+const smooth = t => t * t * (3 - 2 * t);
+const lerp = (a, b, t) => a + (b - a) * t;
+const mix = (c1, c2, t) => c1.map((v, i) => Math.round(lerp(v, c2[i], t)));
+const rgb = (c, a = 1) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+const vis = (p, a, b, f = .035) => ramp(p, a, a + f) * (1 - ramp(p, b - f, b));
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const cv = document.getElementById('cv'), g = cv.getContext('2d');
+let W = 0, H = 0;
+
+// ---------- Contenido ----------
+const demands = [
+  ['Reunión', '9:00 · sala 2', 0], ['Mensajes', '14 sin leer', 0], ['Pagar la luz', 'vence hoy', 1],
+  ['¿Recoges a mamá?', 'a las 18:30', 0], ['Informe', 'lo necesito para ayer', 1], ['Grupo del colegio', '37 mensajes', 0],
+  ['Tarjeta', 'pago mínimo pendiente', 1], ['Correo', 'Re: Re: Urgente', 1], ['Turno extra', '¿puedes el sábado?', 0],
+  ['Médico', 'reprogramar cita', 0], ['Supermercado', 'falta leche', 0], ['Jefe', '¿tienes un minuto?', 1],
+  ['Alquiler', 'día 1', 1], ['Llamada perdida', '(3)', 0], ['Tarea de Sofía', 'maqueta para mañana', 0], ['Recordatorio', 'ya son las 23:40', 1],
+];
+const R = rng(7);
+const bubbles = demands.map(([title, sub, urgent], i) => ({
+  title, sub, urgent,
+  t: .15 + i * (.36 / demands.length),          // aparece con el scroll
+  r: .565 + i * .0075,                            // se suelta
+  ang: i * 2.39996 + R() * .4,
+  rad: .55 + R() * .45,
+  tilt: (R() - .5) * .14,
+  wob: R() * TAU,
+  sx: .08 + R() * .84, sy: .05 + R() * .38,       // estrella destino
+  w: 0,
+}));
+const stars = Array.from({ length: 260 }, () => ({ x: R(), y: R() * .8, s: .3 + R() * 1.3, ph: R() * TAU, d: .3 + R() * .7 }));
+
+function measure() {
+  bubbles.forEach(b => {
+    g.font = '600 13px system-ui, sans-serif'; const a = g.measureText(b.title).width;
+    g.font = '12px system-ui, sans-serif'; const c = g.measureText(b.sub).width;
+    b.w = Math.max(a, c) + 50;
+  });
+}
+function resize() {
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  W = innerWidth; H = innerHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  measure();
+}
+addEventListener('resize', resize); resize();
+
+// ---------- Scroll (la narrativa sólo avanza con el scroll) ----------
+let target = 0, p = 0, prevP = 0;
+const readScroll = () => { const max = document.documentElement.scrollHeight - innerHeight; target = max > 0 ? scrollY / max : 0; };
+addEventListener('scroll', readScroll, { passive: true }); readScroll(); p = prevP = target;
+
+// ---------- Audio (Web Audio API, todo sintetizado, opt-in) ----------
+let A = null, soundOn = false;
+function noiseBuffer(ctx) { const b = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return b; }
+function impulse(ctx, sec, decay) { const r = ctx.sampleRate, n = r * sec, b = ctx.createBuffer(2, n, r); for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, decay); } return b; }
+
+function initAudio() {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const master = ctx.createGain(); master.gain.value = 0;
+  const comp = ctx.createDynamicsCompressor();
+  master.connect(comp).connect(ctx.destination);
+  const rev = ctx.createConvolver(); rev.buffer = impulse(ctx, 3.5, 2.6);
+  const revOut = ctx.createGain(); revOut.gain.value = .5; rev.connect(revOut).connect(master);
+
+  // Cama de tensión: sierras desafinadas + filtro que se abre con el estrés
+  const tLP = ctx.createBiquadFilter(); tLP.type = 'lowpass'; tLP.frequency.value = 120; tLP.Q.value = 7;
+  const tGain = ctx.createGain(); tGain.gain.value = 0;
+  [55, 58.27, 110.6, 82.4].forEach(f => { const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.connect(tLP); o.start(); });
+  tLP.connect(tGain).connect(master);
+  const trem = ctx.createOscillator(); trem.frequency.value = 6.2; const tremG = ctx.createGain(); tremG.gain.value = 0;
+  trem.connect(tremG).connect(tGain.gain); trem.start();
+
+  // Ruido de ciudad/oficina
+  const noise = ctx.createBufferSource(); noise.buffer = noiseBuffer(ctx); noise.loop = true;
+  const nBP = ctx.createBiquadFilter(); nBP.type = 'bandpass'; nBP.frequency.value = 700; nBP.Q.value = .7;
+  const nGain = ctx.createGain(); nGain.gain.value = 0;
+  noise.connect(nBP).connect(nGain).connect(master); noise.start();
+
+  // Pad de calma: acorde de Re mayor (add9) con respiración lenta
+  const pLP = ctx.createBiquadFilter(); pLP.type = 'lowpass'; pLP.frequency.value = 900;
+  const pGain = ctx.createGain(); pGain.gain.value = 0;
+  pLP.connect(pGain); pGain.connect(master); pGain.connect(rev);
+  [146.83, 220, 329.63, 369.99, 440].forEach((f, i) => {
+    const v = ctx.createGain(); v.gain.value = .12;
+    const lfo = ctx.createOscillator(); lfo.frequency.value = .05 + i * .021; const lg = ctx.createGain(); lg.gain.value = .07;
+    lfo.connect(lg).connect(v.gain); lfo.start();
+    [0, 3.5].forEach(det => { const o = ctx.createOscillator(); o.type = i ? 'sine' : 'triangle'; o.frequency.value = f; o.detune.value = det; o.connect(v); o.start(); });
+    v.connect(pLP);
+  });
+  A = { ctx, master, rev, tLP, tGain, tremG, nGain, nBP, pGain, pLP };
+}
+
+function ping(pan, i, stress, delay = 0) {
+  if (!A || !soundOn) return;
+  const { ctx } = A, t = ctx.currentTime + delay;
+  const calmSet = [1174.7, 1318.5, 1480, 1760], tenseSet = [1244.5, 1318.5, 1396.9, 1480, 1864.7];
+  const set = stress > .5 ? tenseSet : calmSet;
+  const f = set[i % set.length];
+  const out = ctx.createGain(); out.gain.setValueAtTime(0, t); out.gain.linearRampToValueAtTime(.09, t + .005); out.gain.exponentialRampToValueAtTime(.0001, t + .45);
+  const pn = ctx.createStereoPanner(); pn.pan.value = clamp(pan, -1, 1);
+  [[f, 'sine'], [f * 2.01, 'sine'], [f * 1.5, 'triangle']].forEach(([fr, type], k) => {
+    const o = ctx.createOscillator(); o.type = type; o.frequency.value = fr; const og = ctx.createGain(); og.gain.value = [1, .35, .12][k];
+    o.connect(og).connect(out); o.start(t); o.stop(t + .5);
+  });
+  out.connect(pn); pn.connect(A.master); const s = ctx.createGain(); s.gain.value = .25; pn.connect(s).connect(A.rev);
+}
+function chime(pan, i, delay = 0) {
+  if (!A || !soundOn) return;
+  const { ctx } = A, t = ctx.currentTime + delay;
+  const notes = [1174.7, 987.8, 880, 740, 659.3, 587.3];
+  const f = notes[i % notes.length];
+  const out = ctx.createGain(); out.gain.setValueAtTime(0, t); out.gain.linearRampToValueAtTime(.05, t + .03); out.gain.exponentialRampToValueAtTime(.0001, t + 3);
+  const pn = ctx.createStereoPanner(); pn.pan.value = clamp(pan, -1, 1);
+  const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f; o.connect(out); o.start(t); o.stop(t + 3.1);
+  out.connect(pn); const s = ctx.createGain(); s.gain.value = .9; pn.connect(s).connect(A.rev); const d = ctx.createGain(); d.gain.value = .4; pn.connect(d).connect(A.master);
+}
+function updateAudio(stress, night, calm) {
+  if (!A) return;
+  const t = A.ctx.currentTime, k = .15;
+  A.tGain.gain.setTargetAtTime(.055 * stress * (1 - night), t, k);
+  A.tremG.gain.setTargetAtTime(.03 * stress * stress * (1 - night), t, k);
+  A.tLP.frequency.setTargetAtTime(110 + stress * 1500 * (1 - night), t, k);
+  A.nGain.gain.setTargetAtTime(.06 * stress * stress * (1 - night) + .01 * (1 - night), t, k);
+  A.nBP.frequency.setTargetAtTime(600 + stress * 1800, t, k);
+  A.pGain.gain.setTargetAtTime(.2 * calm, t, .6);
+  A.pLP.frequency.setTargetAtTime(500 + calm * 1400, t, .6);
+}
+const btn = document.getElementById('snd');
+btn.addEventListener('click', async () => {
+  if (!A) initAudio();
+  soundOn = !soundOn;
+  if (soundOn) { await A.ctx.resume(); A.master.gain.setTargetAtTime(.9, A.ctx.currentTime, .4); }
+  else { A.master.gain.setTargetAtTime(0, A.ctx.currentTime, .15); }
+  btn.textContent = soundOn ? 'Silenciar' : 'Activar sonido';
+  btn.setAttribute('aria-pressed', String(soundOn));
+});
+
+// ---------- Dibujo ----------
+const DAY = [243, 233, 220], TENSE = [205, 207, 212], NIGHT = [13, 22, 38];
+
+function bodyPath(sh) {
+  g.beginPath();
+  g.moveTo(-sh * 1.15, 4);
+  g.bezierCurveTo(-sh * 1.1, -sh * .5, -sh * .75, -sh * .7, -sh * .27, -sh * .77);
+  g.quadraticCurveTo(-sh * .17, -sh * .82, -sh * .15, -sh * .98);
+  g.lineTo(sh * .15, -sh * .98);
+  g.quadraticCurveTo(sh * .17, -sh * .82, sh * .27, -sh * .77);
+  g.bezierCurveTo(sh * .75, -sh * .7, sh * 1.1, -sh * .5, sh * 1.15, 4);
+  g.closePath();
+}
+function drawFigure(cx, baseY, sh, sway, roll, night) {
+  const col = rgb(mix([42, 49, 64], [20, 30, 48], night));
+  g.save(); g.translate(cx + sway, baseY); g.rotate(roll * .4);
+  g.fillStyle = col; bodyPath(sh); g.fill();
+  if (night > 0) { g.strokeStyle = `rgba(255,196,140,${.45 * night})`; g.lineWidth = 1.5; g.stroke(); }
+  g.translate(0, -sh * 1.3); g.rotate(roll);
+  g.beginPath(); g.ellipse(0, 0, sh * .29, sh * .37, 0, 0, TAU); g.fillStyle = col; g.fill();
+  if (night > 0) { g.stroke(); }
+  g.restore();
+  return { x: cx + sway, y: baseY - sh * 1.3 };
+}
+function drawCard(b, x, y, alpha, scale, rot) {
+  const w = b.w, h = 46;
+  g.save(); g.translate(x, y); g.rotate(rot); g.scale(scale, scale); g.globalAlpha = alpha;
+  g.shadowColor = 'rgba(20,25,35,.18)'; g.shadowBlur = 18; g.shadowOffsetY = 6;
+  g.fillStyle = 'rgba(255,255,255,.94)'; g.beginPath(); g.roundRect(-w / 2, -h / 2, w, h, 14); g.fill();
+  g.shadowColor = 'transparent';
+  g.fillStyle = b.urgent ? '#d0553f' : '#3f7a8c'; g.beginPath(); g.arc(-w / 2 + 19, 0, 5, 0, TAU); g.fill();
+  g.fillStyle = '#1d2430'; g.font = '600 13px system-ui, sans-serif'; g.fillText(b.title, -w / 2 + 33, -2);
+  g.fillStyle = 'rgba(29,36,48,.62)'; g.font = '12px system-ui, sans-serif'; g.fillText(b.sub, -w / 2 + 33, 14);
+  g.restore();
+}
+
+const copies = [['c0', -1, .11], ['c1', .15, .33], ['c2', .35, .54], ['c3', .6, .76], ['c4', .83, 1.01]].map(([id, a, b]) => [document.getElementById(id), a, b]);
+const brand = document.getElementById('brand');
+
+function frame(now) {
+  p += (target - p) * (reduce ? 1 : .12);
+  if (Math.abs(target - p) < 1e-5) p = target;
+
+  const walk = ramp(p, .02, .5);
+  const stress = smooth(ramp(p, .12, .52)) * (1 - smooth(ramp(p, .56, .7)));
+  const night = smooth(ramp(p, .58, .74));
+  const calm = smooth(ramp(p, .66, .8));
+
+  // Fondo
+  const base = mix(mix(DAY, TENSE, stress), NIGHT, night);
+  const grd = g.createLinearGradient(0, 0, 0, H);
+  grd.addColorStop(0, rgb(mix(base, [4, 8, 20], night * .6)));
+  grd.addColorStop(1, rgb(mix(base, [240, 205, 170], (1 - night) * .25 + night * .08)));
+  g.fillStyle = grd; g.fillRect(0, 0, W, H);
+
+  // Estrellas de fondo
+  if (night > 0) {
+    stars.forEach(s => {
+      const tw = reduce ? 1 : .75 + .25 * Math.sin(now * .001 * s.d + s.ph);
+      g.fillStyle = `rgba(255,244,225,${night * .8 * tw * s.d})`;
+      g.beginPath(); g.arc(s.x * W, s.y * H, s.s, 0, TAU); g.fill();
+    });
+  }
+
+  // Personaje: acercamiento + balanceo ligados al scroll (curva repetible, no ruido)
+  const zoom = lerp(1, 1.3, smooth(walk)) * lerp(1, .62, night);
+  const sh = Math.min(W * .27, 200) * zoom;
+  const step = p * 70;
+  const sway = reduce ? 0 : Math.sin(step) * 7 * walk * (1 - night);
+  const bob = reduce ? 0 : Math.abs(Math.sin(step)) * 6 * walk * (1 - night);
+  const roll = reduce ? 0 : Math.sin(step + .6) * .025 * walk * (1 - night);
+  const baseY = H + sh * .12 + bob + night * sh * .35;
+
+  // Centro de la nube de demandas
+  const cx = W / 2, cy = H * .5, rx = Math.min(W * .4, 470), ry = Math.min(H * .25, 240);
+
+  // Hilos de tensión (detrás del personaje)
+  const head = { x: cx + sway, y: baseY - sh * 1.3 };
+  bubbles.forEach(b => {
+    const a = smooth(ramp(p, b.t, b.t + .02)), k = smooth(ramp(p, b.r, b.r + .05));
+    if (a <= 0 || k >= 1) return;
+    const jit = reduce ? 0 : Math.sin(p * 140 + b.wob) * 5 * stress;
+    const x = cx + Math.cos(b.ang) * rx * b.rad + jit, y = cy + Math.sin(b.ang) * ry * b.rad - jit * .6;
+    g.strokeStyle = `rgba(40,45,60,${.16 * a * (1 - k) * stress})`; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(head.x, head.y); g.quadraticCurveTo((head.x + x) / 2, y + 40, x, y); g.stroke();
+  });
+
+  drawFigure(cx, baseY, sh, sway, roll, night);
+
+  // Tarjetas de demandas → se sueltan y se vuelven estrellas
+  const fired = [], released = [];
+  bubbles.forEach((b, i) => {
+    const a = smooth(ramp(p, b.t, b.t + .02));
+    const k = smooth(ramp(p, b.r, b.r + .05));
+    if (prevP < b.t && p >= b.t) fired.push(i);
+    if (prevP < b.r + .02 && p >= b.r + .02) released.push(i);
+    if (a <= 0) return;
+    const jit = reduce ? 0 : Math.sin(p * 140 + b.wob) * 5 * stress;
+    const x0 = cx + Math.cos(b.ang) * rx * b.rad + jit, y0 = cy + Math.sin(b.ang) * ry * b.rad - jit * .6;
+    const tx = b.sx * W, ty = b.sy * H;
+    if (k < 1) {
+      const pop = a < 1 ? 1 + Math.sin(a * Math.PI) * .12 : 1;
+      const x = lerp(x0, tx, k), y = lerp(y0, ty, k * k);
+      drawCard(b, x, y, a * (1 - k), (.82 + .18 * a) * pop * (1 - k * .85), b.tilt * (1 + stress * 2) * (1 - k));
+      if (k > 0) { g.fillStyle = `rgba(255,220,170,${k})`; g.beginPath(); g.arc(x, y, 1 + 2 * k, 0, TAU); g.fill(); }
+    } else {
+      const tw = reduce ? 1 : .8 + .2 * Math.sin(now * .0015 + b.wob);
+      const glow = g.createRadialGradient(tx, ty, 0, tx, ty, 14);
+      glow.addColorStop(0, `rgba(255,225,180,${.55 * tw})`); glow.addColorStop(1, 'rgba(255,225,180,0)');
+      g.fillStyle = glow; g.beginPath(); g.arc(tx, ty, 14, 0, TAU); g.fill();
+      g.fillStyle = `rgba(255,240,215,${tw})`; g.beginPath(); g.arc(tx, ty, 2.2, 0, TAU); g.fill();
+    }
+  });
+
+  // El contorno gana volumen: aparece la Tierra
+  const outline = smooth(ramp(p, .8, .88)), volume = smooth(ramp(p, .88, .97));
+  if (outline > 0) {
+    const ex = W / 2, ey = H * .52, er = Math.min(W, H) * .12;
+    if (volume > 0) {
+      const sg = g.createRadialGradient(ex - er * .45, ey - er * .3, er * .1, ex, ey, er);
+      sg.addColorStop(0, `rgba(120,175,190,${volume})`); sg.addColorStop(.6, `rgba(52,96,116,${volume})`); sg.addColorStop(1, `rgba(12,24,40,${volume})`);
+      g.fillStyle = sg; g.beginPath(); g.arc(ex, ey, er, 0, TAU); g.fill();
+    }
+    g.strokeStyle = `rgba(255,214,170,${.8 * outline})`; g.lineWidth = 1.5;
+    g.beginPath(); g.arc(ex, ey, er, -Math.PI / 2, -Math.PI / 2 + TAU * outline); g.stroke();
+  }
+
+  // Sonido ligado a eventos del scroll (sólo hacia adelante)
+  fired.slice(0, 5).forEach((i, n) => ping((bubbles[i].sx - .5) * 1.6, i, stress, n * .04));
+  released.slice(0, 5).forEach((i, n) => chime((bubbles[i].sx - .5) * 1.6, i, n * .12));
+  updateAudio(stress, night, calm);
+
+  // Textos
+  copies.forEach(([el, a, b]) => { el.style.opacity = vis(p, a, b).toFixed(3); });
+  brand.style.color = night > .5 ? '#f3ead9' : '#1d2430';
+
+  prevP = p;
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
