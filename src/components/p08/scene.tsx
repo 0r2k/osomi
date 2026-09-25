@@ -12,6 +12,13 @@ const clamp = (n: number) => Math.max(0, Math.min(1, n));
 const ramp = (p: number, a: number, b: number) => clamp((p - a) / (b - a));
 const smooth = (p: number) => p * p * (3 - 2 * p);
 const TAU = Math.PI * 2;
+// Idea 1: los seis días se llenan de lo que ocupa al visitante (elección de P02, si la hizo).
+const sixDays: Record<string, string> = {
+  trabajo: 'Seis días para el trabajo y todo lo que te ocupa.',
+  telefono: 'Seis días para los mensajes y todo lo que te ocupa.',
+  responsabilidades: 'Seis días para tus responsabilidades y todo lo que te ocupa.',
+  preocupaciones: 'Seis días para lo que te ocupa y te preocupa.',
+};
 const chapters = [
   ['01 / UN DÍA', 'Un giro cambia la luz.', 'La rotación terrestre se relaciona con la alternancia entre día y noche.', 'Día solar medio · aproximadamente 24 horas'],
   ['02 / UN AÑO', 'Ampliemos la mirada.', 'La Tierra también se mueve alrededor del Sol.', 'Sigue bajando para revelar el recorrido.'],
@@ -29,11 +36,14 @@ export default function P08Scene({ onChoice, choice }: { onChoice: (choice: 'bib
   const [chapter, setChapter] = useState(0);
   const [paused, setPaused] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [pausedOn] = useState(() => { try { return sessionStorage.getItem('osomi:pausa'); } catch { return null; } });
   const control = useRef({ paused: false, yaw: 0, pitch: 0, dirty: true, gather: 0 });
 
   useGSAP(() => {
     const state = control.current;
-    const tween = gsap.to(state, { gather: choice === 'bible' ? 1 : 0, duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 1.15, ease: 'power2.inOut', onUpdate: () => { state.dirty = true; } });
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // Primero se llenan los seis días (CSS); después se forma la pila con el día 7 encima.
+    const tween = gsap.to(state, { gather: choice === 'bible' ? 1 : 0, delay: choice === 'bible' && !reduce ? 1 : 0, duration: reduce ? 0 : 1.15, ease: 'power2.inOut', onUpdate: () => { state.dirty = true; } });
     return () => { tween.kill(); };
   }, { dependencies: [choice], scope: root });
 
@@ -199,11 +209,11 @@ export default function P08Scene({ onChoice, choice }: { onChoice: (choice: 'bib
     <div className="p08-stage">
       <div className="p08-caption-stack" ref={captions}>{chapters.map((text, i) => <div key={i} className="p08-caption" aria-hidden={chapter !== i} style={{opacity: i === 0 ? 1 : 0}}><p className="eyebrow">{text[0]}</p><h2>{text[1]}</h2><p>{text[2]}</p><span>{text[3]}</span></div>)}</div>
       <div className="p08-universe" ref={viewport} role="img" aria-label="Modelo de la Tierra, el Sol y su órbita. La explicación completa está disponible después de la escena.">
-        <ol className="p08-cards" ref={cards} aria-hidden="true">{Array.from({ length: 7 }, (_, i) => <li key={i}><span>DÍA</span>{i + 1}</li>)}</ol>
+        <ol className="p08-cards" ref={cards} aria-hidden="true">{Array.from({ length: 7 }, (_, i) => <li key={i}><span>DÍA</span>{i + 1}{i < 6 && <i className="p08-tasks"><b data-urgent={i % 2 === 0} /><b data-urgent={i % 3 === 1} /></i>}</li>)}</ol>
         <canvas ref={sunCover} aria-hidden="true" className="p08-sun-cover" />
       </div>
       <div className="p08-controls">
-        <div className="p09-gate"><p>La Biblia da a este ritmo un significado particular. ¿Quieres explorarlo?</p><div><button onClick={() => onChoice('bible')} aria-pressed={choice === 'bible'}>Explorar la perspectiva bíblica</button><button onClick={() => onChoice('close')} aria-pressed={choice === 'close'}>Ir al cierre</button></div>{choice && <a href="#continuacion">{choice === 'bible' ? 'Continuar con la perspectiva bíblica ↓' : 'Continuar al cierre ↓'}</a>}</div>
+        <div className="p09-gate"><p>La Biblia da a este ritmo un significado particular. ¿Quieres explorarlo?</p><div><button onClick={() => onChoice('bible')} aria-pressed={choice === 'bible'}>Explorar la perspectiva bíblica</button><button onClick={() => onChoice('close')} aria-pressed={choice === 'close'}>Ir al cierre</button></div>{choice === 'bible' && <p className="p09-six"><small>PERSPECTIVA BÍBLICA · ÉXODO 20:9–10, PARÁFRASIS</small>{sixDays[pausedOn ?? ''] ?? 'Seis días para todo lo que te ocupa.'} <em>Uno que no se mide en tareas.</em></p>}{choice && <a href="#continuacion">{choice === 'bible' ? 'Continuar con la perspectiva bíblica ↓' : 'Continuar al cierre ↓'}</a>}</div>
         <div className="p08-orbit-controls"><button onClick={pause} aria-pressed={paused}>{paused ? 'Reanudar órbita' : 'Pausar órbita'}</button><button onClick={() => rotate(-.25)} aria-label="Girar perspectiva a la izquierda">←</button><button onClick={() => rotate(.25)} aria-label="Girar perspectiva a la derecha">→</button><button onClick={reset}>Restablecer vista</button></div>
         <p className="p08-drag-hint">Arrastra a los lados para cambiar de perspectiva. Sigue bajando para continuar.</p>
         <p className="p08-scroll-hint">Desplázate para continuar ↓</p>

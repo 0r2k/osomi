@@ -140,6 +140,8 @@ export function Opening() {
     setChoice(value);
     control.current.choice = value;
     control.current.dirty = true;
+    // Memoria temporal de la pestaña para personalizar P08–P10; no es progreso persistente.
+    try { if (value) sessionStorage.setItem('osomi:pausa', value); else sessionStorage.removeItem('osomi:pausa'); } catch { /* sin almacenamiento: sin personalización */ }
     if (value && value !== 'ninguna') {
       bubbles.current.filter(b => b.category === value).forEach((b, n) => audio.current?.chime((b.sx - .5) * 1.6, n, n * .09, .025));
     }
