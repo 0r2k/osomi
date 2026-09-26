@@ -49,7 +49,7 @@ const demands: [string, string, boolean, Category][] = [
 
 /** Posiciones del recorrido, en pantallas desplazadas (1 = alto del viewport). */
 export const T = {
-  lockedScreens: 5.4, unlockedScreens: 10,
+  lockedScreens: 5.4, unlockedScreens: 8.6,
   appearFrom: .8, appearSpan: 2.3,
   station: 3.4, releaseFrom: 4.6, releaseStep: .07, releaseSpan: .45,
 };
@@ -81,6 +81,10 @@ export function measureBubbles(g: CanvasRenderingContext2D, bubbles: Bubble[]) {
 
 export type Frame = {
   s: number; now: number; width: number; height: number; reduce: boolean; chosen: boolean;
+  /** 0–1: silencia las demandas durante la ronda tranquila del laboratorio. */
+  hush: number;
+  /** Demanda que interrumpe durante la ronda con distracciones. */
+  pulse: { index: number; at: number } | null;
 };
 
 const DAY: RGB = [243, 233, 220], TENSE: RGB = [205, 207, 212], NIGHT: RGB = [7, 11, 20];
@@ -128,7 +132,7 @@ function drawCard(g: CanvasRenderingContext2D, b: Bubble, x: number, y: number, 
 export type Events = { fired: number[]; released: number[] };
 
 export function drawOpening(g: CanvasRenderingContext2D, f: Frame, prevS: number, bubbles: Bubble[], stars: ReturnType<typeof createStars>): Events {
-  const { s, now, width: W, height: H, reduce, chosen } = f;
+  const { s, now, width: W, height: H, reduce, chosen, hush, pulse } = f;
   const { walk, stress, night } = narrative(s);
   const events: Events = { fired: [], released: [] };
 
@@ -199,9 +203,11 @@ export function drawOpening(g: CanvasRenderingContext2D, f: Frame, prevS: number
     const tx = b.sx * W, ty = b.sy * H;
     if (k < 1) {
       const pop = a < 1 ? 1 + Math.sin(a * Math.PI) * .12 : 1;
-      const dim = chosen ? lerp(.5, 1, b.highlight) : 1;
+      const dim = (chosen ? lerp(.5, 1, b.highlight) : 1) * (1 - .75 * hush);
+      const age = pulse && pulse.index === i ? (now - pulse.at) / 700 : 1;
+      const knock = age < 1 ? Math.sin(age * Math.PI) : 0;
       const x = lerp(x0, tx, k), y = lerp(y0, ty, k * k);
-      drawCard(g, b, x, y, a * (1 - k) * dim, (.82 + .18 * a) * pop * (1 + b.highlight * .06) * (1 - k * .85), b.tilt * (1 + stress * 2) * (1 - k));
+      drawCard(g, b, x, y, Math.max(a * (1 - k) * dim, knock), (.82 + .18 * a) * pop * (1 + b.highlight * .06 + knock * .14) * (1 - k * .85), b.tilt * (1 + stress * 2) * (1 - k) + (reduce ? 0 : Math.sin(age * 28) * .06 * knock));
       if (k > 0) { g.fillStyle = `rgba(255,220,170,${k})`; g.beginPath(); g.arc(x, y, 1 + 2 * k, 0, TAU); g.fill(); }
     } else {
       const tw = reduce ? 1 : .8 + .2 * Math.sin(now * .0015 + b.wob);

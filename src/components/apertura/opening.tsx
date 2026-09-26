@@ -1,21 +1,21 @@
 'use client';
 
-import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { OpeningAudio } from './audio';
+import { useSound } from '../descanso/sound';
 import { T, createBubbles, createStars, drawOpening, measureBubbles, narrative, ramp, type Category } from './draw';
+import { Lab } from './lab';
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 
-type Choice = Category | 'ninguna';
-const choices: [Choice, string][] = [
+export type Pausa = Category | 'ninguna';
+const choices: [Pausa, string][] = [
   ['trabajo', 'El trabajo'], ['telefono', 'El teléfono'], ['responsabilidades', 'Mis responsabilidades'],
   ['preocupaciones', 'Mis preocupaciones'], ['ninguna', 'Prefiero no responder'],
 ];
-const phrases: Record<Choice, [string, string]> = {
+const phrases: Record<Pausa, [string, string]> = {
   trabajo: ['El trabajo seguirá ahí mañana.', 'Tú también necesitas un tiempo que no se mida en tareas.'],
   telefono: ['Los mensajes pueden esperar.', 'Tú también necesitas un tiempo sin notificaciones.'],
   responsabilidades: ['Cuidar de otros es valioso.', 'Tú también necesitas un tiempo para que te cuiden.'],
@@ -24,19 +24,20 @@ const phrases: Record<Choice, [string, string]> = {
 };
 
 // [inicio, fin] de cada texto, en pantallas desplazadas.
-const copyRanges: [number, number][] = [[-1, .55], [.8, 1.9], [2, 3.2], [5, 6.3], [6.5, 7.7], [7.9, 99]];
+const copyRanges: [number, number][] = [[-1, .55], [.8, 1.9], [2, 3.2], [5, 6.3], [6.5, 7.9]];
 const fade = (s: number, a: number, b: number, f = .3) => ramp(s, a, a + f) * (1 - ramp(s, b - f, b));
 
-export function Opening() {
+export function Opening({ pausa, onPausa, onUnlock }: { pausa: Pausa | null; onPausa: (value: Pausa | null) => void; onUnlock?: () => void }) {
   const section = useRef<HTMLElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const station = useRef<HTMLDivElement>(null);
-  const audio = useRef<OpeningAudio | null>(null);
-  const control = useRef({ choice: null as Choice | null, unlocked: false, dirty: true });
-  const [choice, setChoice] = useState<Choice | null>(null);
+  const sound = useSound();
+  const control = useRef({ choice: null as Pausa | null, unlocked: false, dirty: true, hush: 0, hushTarget: 0, pulse: null as { index: number; at: number } | null });
+  const [step, setStep] = useState<'choose' | 'lab'>('choose');
   const [unlocked, setUnlocked] = useState(false);
-  const [sound, setSound] = useState(false);
+  const [stationVisible, setStationVisible] = useState(false);
+  const [toast, setToast] = useState<{ title: string; sub: string; key: number } | null>(null);
   const bubbles = useRef(createBubbles());
 
   useGSAP(() => {
@@ -46,7 +47,7 @@ export function Opening() {
     const stars = createStars(260);
     const state = control.current;
     const copies = Array.from(stage.current!.querySelectorAll<HTMLElement>('.opening-copy'));
-    let width = 1, height = 1, target = 0, s = 0, prev = 0, visible = true;
+    let width = 1, height = 1, target = 0, s = 0, prev = 0, visible = true, shown = false;
 
     const resize = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -69,8 +70,6 @@ export function Opening() {
 
     const io = new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; state.dirty = true; });
     io.observe(stage.current!);
-    const onVisibility = () => { void audio.current?.hold(document.hidden); state.dirty = true; };
-    document.addEventListener('visibilitychange', onVisibility);
 
     const tick = (now: number, delta: number) => {
       if (document.hidden || !visible) return;
@@ -86,17 +85,22 @@ export function Opening() {
         b.highlight = Math.abs(goal - next) < .005 ? goal : next;
         if (b.highlight !== goal) settling = true;
       }
+      const hushNext = state.hush + (state.hushTarget - state.hush) * (reduce ? 1 : .08);
+      state.hush = Math.abs(state.hushTarget - hushNext) < .005 ? state.hushTarget : hushNext;
+      if (state.hush !== state.hushTarget) settling = true;
+      const pulsing = !!state.pulse && now - state.pulse.at < 800;
+
       const { stress, night, calm } = narrative(s);
       const twinkling = night > 0 && !reduce;
-      if (s === prev && !state.dirty && !settling && !twinkling) return;
+      if (s === prev && !state.dirty && !settling && !twinkling && !pulsing) return;
       state.dirty = false;
 
-      const events = drawOpening(g, { s, now, width, height, reduce, chosen: !!chosenCategory }, prev, bubbles.current, stars);
-      const a = audio.current;
+      const events = drawOpening(g, { s, now, width, height, reduce, chosen: !!chosenCategory, hush: state.hush, pulse: state.pulse }, prev, bubbles.current, stars);
+      const a = sound.get();
       if (a) {
         events.fired.slice(0, 5).forEach((i, n) => a.ping((bubbles.current[i].sx - .5) * 1.6, i, stress, n * .04));
         events.released.slice(0, 5).forEach((i, n) => a.chime((bubbles.current[i].sx - .5) * 1.6, i, n * .12));
-        a.update(stress, night, calm);
+        a.update(stress * (1 - .8 * state.hush), night, calm);
       }
 
       copies.forEach((el, i) => { el.style.opacity = fade(s, ...copyRanges[i]).toFixed(3); });
@@ -104,80 +108,89 @@ export function Opening() {
       const stationOpacity = fade(s, T.station, state.unlocked ? T.releaseFrom + .2 : 99);
       st.style.opacity = stationOpacity.toFixed(3);
       st.inert = stationOpacity < .4;
+      if (shown !== stationOpacity >= .4) { shown = stationOpacity >= .4; setStationVisible(shown); }
       stage.current!.dataset.night = night > .5 ? 'true' : 'false';
       prev = s;
     };
     gsap.ticker.add(tick);
 
-    return () => {
-      gsap.ticker.remove(tick); trigger.kill(); observer.disconnect(); io.disconnect();
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
+    return () => { gsap.ticker.remove(tick); trigger.kill(); observer.disconnect(); io.disconnect(); };
   }, { scope: section });
-
-  // El audio nunca sobrevive a la escena (incluida la navegación que oculta la página).
-  useEffect(() => () => { audio.current?.close(); audio.current = null; }, []);
 
   useEffect(() => {
     control.current.unlocked = unlocked;
     control.current.dirty = true;
     if (!unlocked) return;
+    onUnlock?.();
     ScrollTrigger.refresh();
     const top = section.current!.getBoundingClientRect().top + window.scrollY;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     window.scrollTo({ top: top + (T.releaseFrom + .35) * stage.current!.clientHeight, behavior: reduce ? 'auto' : 'smooth' });
-  }, [unlocked]);
+  }, [unlocked, onUnlock]);
 
-  async function toggleSound() {
-    if (!audio.current) audio.current = new OpeningAudio();
-    await audio.current.setEnabled(!sound);
-    setSound(!sound);
-    control.current.dirty = true;
-  }
-
-  function choose(next: Choice) {
-    const value = choice === next ? null : next;
-    setChoice(value);
+  function choose(next: Pausa) {
+    const value = pausa === next ? null : next;
+    onPausa(value);
     control.current.choice = value;
     control.current.dirty = true;
-    // Memoria temporal de la pestaña para personalizar P08–P10; no es progreso persistente.
-    try { if (value) sessionStorage.setItem('osomi:pausa', value); else sessionStorage.removeItem('osomi:pausa'); } catch { /* sin almacenamiento: sin personalización */ }
     if (value && value !== 'ninguna') {
-      bubbles.current.filter(b => b.category === value).forEach((b, n) => audio.current?.chime((b.sx - .5) * 1.6, n, n * .09, .025));
+      bubbles.current.filter(b => b.category === value).forEach((b, n) => sound.get()?.chime((b.sx - .5) * 1.6, n, n * .09, .025));
     }
   }
 
-  function goOn() {
+  const onMode = useCallback((mode: 'none' | 'quiet' | 'busy') => {
+    control.current.hushTarget = mode === 'quiet' ? 1 : 0;
+    control.current.dirty = true;
+  }, []);
+
+  // Una demanda de la escena interrumpe: se agita, suena y aparece como aviso ficticio.
+  const { get } = sound;
+  const onDistract = useCallback(() => {
+    const list = bubbles.current;
+    const index = Math.floor(Math.random() * list.length);
+    const b = list[index];
+    control.current.pulse = { index, at: performance.now() };
+    get()?.ping((b.sx - .5) * 1.6, index, 1);
+    setToast({ title: b.title, sub: b.sub, key: Date.now() });
+  }, [get]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 2300);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  function release() {
+    control.current.hushTarget = 0;
     if (!unlocked) { setUnlocked(true); return; }
     const top = section.current!.getBoundingClientRect().top + window.scrollY;
     window.scrollTo({ top: top + (T.releaseFrom + .35) * stage.current!.clientHeight, behavior: 'smooth' });
   }
 
-  const [lead, rest] = phrases[choice ?? 'ninguna'];
+  const [lead, rest] = phrases[pausa ?? 'ninguna'];
 
   return <section ref={section} className="opening" style={{ height: `${(unlocked ? T.unlockedScreens : T.lockedScreens) * 100}svh` }} aria-label="¿Por qué necesito descansar? Apertura">
     <div ref={stage} className="opening-stage">
       <canvas ref={canvas} aria-hidden="true" />
-      <button className="opening-sound" onClick={toggleSound} aria-pressed={sound}>{sound ? 'Silenciar' : 'Activar sonido'}</button>
 
       <div className="opening-copy"><p className="eyebrow">OSOMI · MIRA MÁS DE CERCA</p><h1>¿Por qué necesito descansar?</h1><p>Explora a tu ritmo. Desplázate para comenzar.</p></div>
       <div className="opening-copy"><h2>A veces el día termina.</h2></div>
       <div className="opening-copy"><h2>Las demandas, no.</h2></div>
       <div className="opening-copy"><h2>Soltar no es olvidar.</h2><p>Es dejar cada cosa en su lugar, por un momento.</p></div>
       <div className="opening-copy"><h2>{lead}</h2><p>{rest}</p></div>
-      <div className="opening-copy opening-next">
-        <h2>¿Por qué necesitamos ese tiempo?</h2>
-        <p>Miremos más de cerca: lo que pasa mientras duermes, los ritmos de tu cuerpo y los del planeta.</p>
-        <Link href="/prototipo/p08">Continuar: día, año y semana →</Link>
-        <small>Prototipo: P03–P07 (laboratorio, sueño y ritmos) están en construcción.</small>
-      </div>
 
-      <div ref={station} className="opening-station" role="group" aria-labelledby="opening-question">
-        <h2 id="opening-question">¿Qué te cuesta dejar en pausa?</h2>
-        <div className="opening-choices">{choices.map(([value, label]) =>
-          <button key={value} aria-pressed={choice === value} onClick={() => choose(value)}>{label}</button>)}
-        </div>
-        <button className="opening-continue" onClick={goOn}>{unlocked ? 'Seguir bajando ↓' : 'Dejarlas en pausa por un momento'}</button>
+      {toast && <div key={toast.key} className="opening-toast" aria-hidden="true"><b>{toast.title}</b>{toast.sub && <span>{toast.sub}</span>}</div>}
+
+      <div ref={station} className="opening-station" data-step={step} role="group" aria-label={step === 'choose' ? '¿Qué te cuesta dejar en pausa?' : 'Pequeño laboratorio'}>
+        {step === 'choose' ? <>
+          <h2>¿Qué te cuesta dejar en pausa?</h2>
+          <div className="opening-choices">{choices.map(([value, label]) =>
+            <button key={value} aria-pressed={pausa === value} onClick={() => choose(value)}>{label}</button>)}
+          </div>
+          <button className="opening-continue" onClick={() => setStep('lab')}>Continuar</button>
+        </> : unlocked
+          ? <><h2>Las dejaste en pausa.</h2><button className="opening-continue" onClick={release}>Seguir bajando ↓</button></>
+          : <Lab active={stationVisible} onMode={onMode} onDistract={onDistract} onRelease={release} />}
       </div>
     </div>
   </section>;

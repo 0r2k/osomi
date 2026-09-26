@@ -27,7 +27,7 @@ const chapters = [
   ['03 / UNA SEMANA', 'Damos forma a nuestros días.', 'La semana organiza el tiempo de otra manera: su historia incluye tradiciones culturales y religiosas.', 'Siete días · un ritmo de calendario'],
 ];
 
-export default function P08Scene({ onChoice, choice }: { onChoice: (choice: 'bible' | 'close') => void; choice: 'bible' | 'close' | null }) {
+export default function P08Scene({ onChoice, choice, pausa }: { onChoice: (choice: 'bible' | 'close') => void; choice: 'bible' | 'close' | null; pausa?: string | null }) {
   const root = useRef<HTMLDivElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const cards = useRef<HTMLOListElement>(null);
@@ -36,7 +36,6 @@ export default function P08Scene({ onChoice, choice }: { onChoice: (choice: 'bib
   const [chapter, setChapter] = useState(0);
   const [paused, setPaused] = useState(false);
   const [failed, setFailed] = useState(false);
-  const [pausedOn] = useState(() => { try { return sessionStorage.getItem('osomi:pausa'); } catch { return null; } });
   const control = useRef({ paused: false, yaw: 0, pitch: 0, dirty: true, gather: 0 });
 
   useGSAP(() => {
@@ -128,7 +127,7 @@ export default function P08Scene({ onChoice, choice }: { onChoice: (choice: 'bib
       const day = ramp(p, 0, .22);
       const angle = phase;
       earth.position.set(Math.cos(angle) * 4, 0, Math.sin(angle) * 4);
-      spin.rotation.y = 3.9 + day * (TAU + TAU / 365.25);
+      spin.rotation.y = 6.45 + day * (TAU + TAU / 365.25);
       axis.visible = p < .42;
       orbit.visible = reveal > 0;
       target.copy(earth.position).multiplyScalar(1 - reveal);
@@ -213,7 +212,7 @@ export default function P08Scene({ onChoice, choice }: { onChoice: (choice: 'bib
         <canvas ref={sunCover} aria-hidden="true" className="p08-sun-cover" />
       </div>
       <div className="p08-controls">
-        <div className="p09-gate"><p>La Biblia da a este ritmo un significado particular. ¿Quieres explorarlo?</p><div><button onClick={() => onChoice('bible')} aria-pressed={choice === 'bible'}>Explorar la perspectiva bíblica</button><button onClick={() => onChoice('close')} aria-pressed={choice === 'close'}>Ir al cierre</button></div>{choice === 'bible' && <p className="p09-six"><small>PERSPECTIVA BÍBLICA · ÉXODO 20:9–10, PARÁFRASIS</small>{sixDays[pausedOn ?? ''] ?? 'Seis días para todo lo que te ocupa.'} <em>Uno que no se mide en tareas.</em></p>}{choice && <a href="#continuacion">{choice === 'bible' ? 'Continuar con la perspectiva bíblica ↓' : 'Continuar al cierre ↓'}</a>}</div>
+        <div className="p09-gate"><p>La Biblia da a este ritmo un significado particular. ¿Quieres explorarlo?</p><div><button onClick={() => onChoice('bible')} aria-pressed={choice === 'bible'}>Explorar la perspectiva bíblica</button><button onClick={() => onChoice('close')} aria-pressed={choice === 'close'}>Ir al cierre</button></div>{choice === 'bible' && <p className="p09-six"><small>PERSPECTIVA BÍBLICA · ÉXODO 20:9–10, PARÁFRASIS</small>{sixDays[pausa ?? ''] ?? 'Seis días para todo lo que te ocupa.'} <em>Uno que no se mide en tareas.</em></p>}{choice && <a href="#continuacion">{choice === 'bible' ? 'Continuar con la perspectiva bíblica ↓' : 'Continuar al cierre ↓'}</a>}</div>
         <div className="p08-orbit-controls"><button onClick={pause} aria-pressed={paused}>{paused ? 'Reanudar órbita' : 'Pausar órbita'}</button><button onClick={() => rotate(-.25)} aria-label="Girar perspectiva a la izquierda">←</button><button onClick={() => rotate(.25)} aria-label="Girar perspectiva a la derecha">→</button><button onClick={reset}>Restablecer vista</button></div>
         <p className="p08-drag-hint">Arrastra a los lados para cambiar de perspectiva. Sigue bajando para continuar.</p>
         <p className="p08-scroll-hint">Desplázate para continuar ↓</p>
