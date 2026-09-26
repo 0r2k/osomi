@@ -165,6 +165,24 @@ export class OpeningAudio {
     panner.connect(send).connect(this.reverb);
   }
 
+  /** Notificación insistente del laboratorio: dos tonos brillantes, como un teléfono. */
+  notify(pan: number, delay = 0) {
+    if (!this.enabled) return;
+    ([[1567.98, 0], [1174.66, .11]] as const).forEach(([f, offset]) => {
+      const { t, out, panner } = this.voice(pan, delay + offset);
+      out.gain.setValueAtTime(0, t);
+      out.gain.linearRampToValueAtTime(.16, t + .004);
+      out.gain.exponentialRampToValueAtTime(.0001, t + .35);
+      for (const [ratio, type, level] of [[1, 'sine', 1], [2, 'triangle', .25], [3.01, 'sine', .08]] as const) {
+        const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+        o.type = type; o.frequency.value = f * ratio; g.gain.value = level;
+        o.connect(g).connect(out); o.start(t); o.stop(t + .4);
+      }
+      panner.connect(this.master);
+      const send = this.ctx.createGain(); send.gain.value = .15; panner.connect(send).connect(this.reverb);
+    });
+  }
+
   /** Campana suave: una demanda que se deja en pausa. */
   chime(pan: number, index: number, delay = 0, level = .05) {
     if (!this.enabled) return;

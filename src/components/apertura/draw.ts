@@ -180,16 +180,7 @@ export function drawOpening(g: CanvasRenderingContext2D, f: Frame, prevS: number
     g.beginPath(); g.moveTo(head.x, head.y); g.quadraticCurveTo((head.x + x) / 2, y + 40, x, y); g.stroke();
   }
 
-  // Figura.
-  const color = rgb(mix([42, 49, 64], [16, 24, 40], night));
-  g.save();
-  g.translate(W / 2 + sway, baseY); g.rotate(roll * .4);
-  g.fillStyle = color; bodyPath(g, sh); g.fill();
-  if (night > 0) { g.strokeStyle = `rgba(255,196,140,${.45 * night})`; g.lineWidth = 1.5; g.stroke(); }
-  g.translate(0, -sh * 1.3); g.rotate(roll);
-  g.beginPath(); g.ellipse(0, 0, sh * .29, sh * .37, 0, 0, TAU); g.fill();
-  if (night > 0) g.stroke();
-  g.restore();
+  drawBust(g, W / 2 + sway, baseY, sh, roll, night);
 
   // Demandas → se dejan en pausa → estrellas.
   bubbles.forEach((b, i) => {
@@ -210,15 +201,40 @@ export function drawOpening(g: CanvasRenderingContext2D, f: Frame, prevS: number
       drawCard(g, b, x, y, Math.max(a * (1 - k) * dim, knock), (.82 + .18 * a) * pop * (1 + b.highlight * .06 + knock * .14) * (1 - k * .85), b.tilt * (1 + stress * 2) * (1 - k) + (reduce ? 0 : Math.sin(age * 28) * .06 * knock));
       if (k > 0) { g.fillStyle = `rgba(255,220,170,${k})`; g.beginPath(); g.arc(x, y, 1 + 2 * k, 0, TAU); g.fill(); }
     } else {
-      const tw = reduce ? 1 : .8 + .2 * Math.sin(now * .0015 + b.wob);
-      const r = 14 + b.highlight * 6;
-      const glow = g.createRadialGradient(tx, ty, 0, tx, ty, r);
-      glow.addColorStop(0, `rgba(255,225,180,${(.55 + .3 * b.highlight) * tw})`);
-      glow.addColorStop(1, 'rgba(255,225,180,0)');
-      g.fillStyle = glow; g.beginPath(); g.arc(tx, ty, r, 0, TAU); g.fill();
-      g.fillStyle = `rgba(255,240,215,${tw})`; g.beginPath(); g.arc(tx, ty, 2.2, 0, TAU); g.fill();
+      drawBubbleStar(g, b, W, H, now, reduce, 1);
     }
   });
 
   return events;
+}
+
+// Piezas compartidas con P05: el primer fotograma de la escena siguiente es idéntico al último de la apertura.
+export const NIGHT_SKY: [RGB, RGB] = [mix(NIGHT, [2, 4, 10], .6), mix(NIGHT, [240, 205, 170], .06)];
+
+export function drawBust(g: CanvasRenderingContext2D, x: number, baseY: number, sh: number, roll: number, night: number) {
+  g.save();
+  g.translate(x, baseY); g.rotate(roll * .4);
+  g.fillStyle = rgb(mix([42, 49, 64], [16, 24, 40], night)); bodyPath(g, sh); g.fill();
+  if (night > 0) { g.strokeStyle = `rgba(255,196,140,${.45 * night})`; g.lineWidth = 1.5; g.stroke(); }
+  g.translate(0, -sh * 1.3); g.rotate(roll);
+  g.beginPath(); g.ellipse(0, 0, sh * .29, sh * .37, 0, 0, TAU); g.fill();
+  if (night > 0) g.stroke();
+  g.restore();
+}
+
+/** Tamaño y base de la persona en el último fotograma nocturno de la apertura. */
+export function nightBust(W: number, H: number) {
+  const sh = Math.min(W * .27, 200) * 1.3 * .62;
+  return { sh, baseY: H + sh * .12 + sh * .35 };
+}
+
+export function drawBubbleStar(g: CanvasRenderingContext2D, b: Bubble, W: number, H: number, now: number, reduce: boolean, alpha: number) {
+  const tx = b.sx * W, ty = b.sy * H;
+  const tw = (reduce ? 1 : .8 + .2 * Math.sin(now * .0015 + b.wob)) * alpha;
+  const r = 14 + b.highlight * 6;
+  const glow = g.createRadialGradient(tx, ty, 0, tx, ty, r);
+  glow.addColorStop(0, `rgba(255,225,180,${(.55 + .3 * b.highlight) * tw})`);
+  glow.addColorStop(1, 'rgba(255,225,180,0)');
+  g.fillStyle = glow; g.beginPath(); g.arc(tx, ty, r, 0, TAU); g.fill();
+  g.fillStyle = `rgba(255,240,215,${tw})`; g.beginPath(); g.arc(tx, ty, 2.2, 0, TAU); g.fill();
 }

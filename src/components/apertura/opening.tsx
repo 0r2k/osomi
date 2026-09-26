@@ -24,7 +24,8 @@ const phrases: Record<Pausa, [string, string]> = {
 };
 
 // [inicio, fin] de cada texto, en pantallas desplazadas.
-const copyRanges: [number, number][] = [[-1, .55], [.8, 1.9], [2, 3.2], [5, 6.3], [6.5, 7.9]];
+// El último fotograma (s = 7.6) queda limpio: es idéntico al primero de P05.
+const copyRanges: [number, number][] = [[-1, .55], [.8, 1.9], [2, 3.2], [4.9, 6.1], [6.2, 7.3]];
 const fade = (s: number, a: number, b: number, f = .3) => ramp(s, a, a + f) * (1 - ramp(s, b - f, b));
 
 export function Opening({ pausa, onPausa, onUnlock }: { pausa: Pausa | null; onPausa: (value: Pausa | null) => void; onUnlock?: () => void }) {
@@ -37,7 +38,7 @@ export function Opening({ pausa, onPausa, onUnlock }: { pausa: Pausa | null; onP
   const [step, setStep] = useState<'choose' | 'lab'>('choose');
   const [unlocked, setUnlocked] = useState(false);
   const [stationVisible, setStationVisible] = useState(false);
-  const [toast, setToast] = useState<{ title: string; sub: string; key: number } | null>(null);
+  const [toasts, setToasts] = useState<{ title: string; sub: string; key: number; slot: number }[]>([]);
   const bubbles = useRef(createBubbles());
 
   useGSAP(() => {
@@ -141,6 +142,8 @@ export function Opening({ pausa, onPausa, onUnlock }: { pausa: Pausa | null; onP
   const onMode = useCallback((mode: 'none' | 'quiet' | 'busy') => {
     control.current.hushTarget = mode === 'quiet' ? 1 : 0;
     control.current.dirty = true;
+    // Al terminar, salir o reiniciar la ronda, las interrupciones se detienen por completo.
+    if (mode !== 'busy') setToasts([]);
   }, []);
 
   // Una demanda de la escena interrumpe: se agita, suena y aparece como aviso ficticio.
@@ -150,18 +153,16 @@ export function Opening({ pausa, onPausa, onUnlock }: { pausa: Pausa | null; onP
     const index = Math.floor(Math.random() * list.length);
     const b = list[index];
     control.current.pulse = { index, at: performance.now() };
-    get()?.ping((b.sx - .5) * 1.6, index, 1);
-    setToast({ title: b.title, sub: b.sub, key: Date.now() });
+    const slot = Math.floor(Math.random() * 4);
+    get()?.notify(slot % 2 ? .6 : -.6);
+    const key = performance.now();
+    setToasts(list => [...list.filter(t => t.slot !== slot).slice(-1), { title: b.title, sub: b.sub, key, slot }]);
+    window.setTimeout(() => setToasts(list => list.filter(t => t.key !== key)), 2600);
   }, [get]);
-
-  useEffect(() => {
-    if (!toast) return;
-    const timer = window.setTimeout(() => setToast(null), 2300);
-    return () => window.clearTimeout(timer);
-  }, [toast]);
 
   function release() {
     control.current.hushTarget = 0;
+    setToasts([]);
     if (!unlocked) { setUnlocked(true); return; }
     const top = section.current!.getBoundingClientRect().top + window.scrollY;
     window.scrollTo({ top: top + (T.releaseFrom + .35) * stage.current!.clientHeight, behavior: 'smooth' });
@@ -179,7 +180,7 @@ export function Opening({ pausa, onPausa, onUnlock }: { pausa: Pausa | null; onP
       <div className="opening-copy"><h2>Soltar no es olvidar.</h2><p>Es dejar cada cosa en su lugar, por un momento.</p></div>
       <div className="opening-copy"><h2>{lead}</h2><p>{rest}</p></div>
 
-      {toast && <div key={toast.key} className="opening-toast" aria-hidden="true"><b>{toast.title}</b>{toast.sub && <span>{toast.sub}</span>}</div>}
+      {toasts.map(t => <div key={t.key} className="opening-toast" data-slot={t.slot} aria-hidden="true"><b>{t.title}</b>{t.sub && <span>{t.sub}</span>}</div>)}
 
       <div ref={station} className="opening-station" data-step={step} role="group" aria-label={step === 'choose' ? '¿Qué te cuesta dejar en pausa?' : 'Pequeño laboratorio'}>
         {step === 'choose' ? <>

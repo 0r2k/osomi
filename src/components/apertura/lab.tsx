@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useSound } from '../descanso/sound';
 
 // P03–P04 · Pequeño laboratorio. Demostración educativa, no prueba clínica:
 // sin cronómetro, sin rapidez, sin diagnóstico. Registra errores y correcciones.
@@ -31,9 +32,11 @@ function shuffle<T>(items: T[]) {
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
   return a;
 }
+// Cinco símbolos por secuencia (misma dificultad en ambas rondas) entre ocho opciones.
+const LENGTH = 5;
 function makeTrial(): Trial {
-  const picked = shuffle(SHAPES).slice(0, 6);
-  return { sequence: picked.slice(0, 4), palette: shuffle(picked) };
+  const picked = shuffle(SHAPES);
+  return { sequence: picked.slice(0, LENGTH), palette: shuffle(picked) };
 }
 const TRIALS_PER_ROUND = 2;
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -60,6 +63,7 @@ export function Lab({ active, onMode, onDistract, onRelease }: {
   const [exampleInterrupted, setExampleInterrupted] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const correctionsThisTrial = useRef(0);
+  const sound = useSound();
 
   const round = 'round' in phase ? phase.round : null;
   const condition: Condition | null = round === null ? null : round < 0 ? 'quiet' : order[round];
@@ -74,9 +78,9 @@ export function Lab({ active, onMode, onDistract, onRelease }: {
     if (!distracting) return;
     let timer = 0;
     const schedule = () => {
-      timer = window.setTimeout(() => { if (!document.hidden) onDistract(); schedule(); }, 1700 + Math.random() * 1600);
+      timer = window.setTimeout(() => { if (!document.hidden) onDistract(); schedule(); }, 1100 + Math.random() * 1000);
     };
-    schedule();
+    timer = window.setTimeout(() => { if (!document.hidden) onDistract(); schedule(); }, 600);
     return () => window.clearTimeout(timer);
   }, [distracting, onDistract]);
 
@@ -111,7 +115,7 @@ export function Lab({ active, onMode, onDistract, onRelease }: {
   if (phase.name === 'intro') return <div className="lab">
     {eyebrow}
     <h2 ref={heading} tabIndex={-1}>Una tarea, dos condiciones.</h2>
-    <p>Memoriza cuatro símbolos y reconstruye su orden. Lo harás dos veces: una ronda tranquila y otra con avisos que interrumpen. No hay reloj ni prisa.</p>
+    <p>Memoriza cinco símbolos y reconstruye su orden. Lo harás dos veces: una ronda tranquila y otra con avisos que interrumpen. No hay reloj ni prisa.</p>
     <div className="lab-actions">
       <button className="lab-primary" onClick={() => setPhase({ name: 'brief', round: -1 })}>Realizar la actividad</button>
       <button onClick={() => setPhase({ name: 'example', step: 0 })}>Ver un ejemplo paso a paso</button>
@@ -120,9 +124,9 @@ export function Lab({ active, onMode, onDistract, onRelease }: {
   </div>;
 
   if (phase.name === 'example') {
-    const example: Shape[] = ['estrella', 'círculo', 'luna', 'cuadrado'];
+    const example: Shape[] = ['estrella', 'círculo', 'luna', 'cuadrado', 'rombo'];
     const steps = [
-      <><h2 ref={heading} tabIndex={-1}>1 · La tarea</h2><p>Se muestra una secuencia de cuatro símbolos. Hay que recordarla y luego reconstruir el orden.</p><div className="lab-row">{example.map(s => <figure key={s}><Symbol shape={s} /><figcaption>{s}</figcaption></figure>)}</div></>,
+      <><h2 ref={heading} tabIndex={-1}>1 · La tarea</h2><p>Se muestra una secuencia de cinco símbolos. Hay que recordarla y luego reconstruir el orden.</p><div className="lab-row">{example.map(s => <figure key={s}><Symbol shape={s} /><figcaption>{s}</figcaption></figure>)}</div></>,
       <><h2 ref={heading} tabIndex={-1}>2 · Llega una interrupción</h2><p>Mientras intentas recordar, aparece un aviso. Puedes mostrarlo cuando quieras.</p>{exampleInterrupted ? <div className="lab-toast-inline"><b>Jefe</b><span>¿tienes un minuto?</span></div> : <button onClick={() => setExampleInterrupted(true)}>Mostrar una interrupción</button>}</>,
       <><h2 ref={heading} tabIndex={-1}>3 · Volver a la tarea</h2><p>Después de la interrupción hay que recordar dos cosas: la secuencia y hasta dónde ibas.</p><div className="lab-row">{example.map((s, i) => <figure key={s} className={i < 2 ? '' : 'lab-empty'}>{i < 2 ? <Symbol shape={s} /> : <span>?</span>}<figcaption>{i < 2 ? s : 'pendiente'}</figcaption></figure>)}</div></>,
       <><h2 ref={heading} tabIndex={-1}>4 · Lo que se compara</h2><p>En la actividad se cuentan los símbolos fuera de lugar y las veces que se usa «Deshacer» en cada ronda. No se mide rapidez. Un resultado así describe un momento de juego, no tu salud ni tu capacidad.</p></>,
@@ -145,7 +149,8 @@ export function Lab({ active, onMode, onDistract, onRelease }: {
       {eyebrow}
       <p className="lab-step">{roundLabel}</p>
       <h2 ref={heading} tabIndex={-1}>{phase.round < 0 ? 'Primero, una práctica.' : busy ? 'Ahora, con distracciones.' : 'Ahora, una ronda tranquila.'}</h2>
-      <p>{phase.round < 0 ? 'Sirve para conocer la tarea. No cuenta para el resultado.' : busy ? 'Aparecerán avisos como los de antes, con sonido si lo activaste. Son ficticios: no necesitas responderlos. No habrá destellos.' : 'Las demandas quedarán en silencio mientras juegas.'}</p>
+      <p>{phase.round < 0 ? 'Sirve para conocer la tarea. No cuenta para el resultado.' : busy ? 'Aparecerán avisos como los de antes, con sonido de notificación. Son ficticios: no necesitas responderlos. No habrá destellos.' : 'Las demandas quedarán en silencio mientras juegas.'}</p>
+      {busy && !sound.enabled && <p className="lab-note">La ronda funciona mejor con sonido. <button className="lab-inline" onClick={() => void sound.toggle()}>Activar sonido</button></p>}
       <div className="lab-actions"><button className="lab-primary" onClick={() => startTrial(phase.round, 0)}>Empezar</button>{exit}</div>
     </div>;
   }
@@ -164,8 +169,8 @@ export function Lab({ active, onMode, onDistract, onRelease }: {
     return <div className="lab">
       {eyebrow}
       <p className="lab-step">{roundLabel}{phase.round >= 0 && ` · secuencia ${phase.trial + 1} de ${TRIALS_PER_ROUND}`}</p>
-      <h2 ref={heading} tabIndex={-1}>{done ? `${hits} de 4 en su lugar.` : '¿En qué orden estaban?'}</h2>
-      <ol className="lab-slots" aria-label="Tu respuesta">{[0, 1, 2, 3].map(i => {
+      <h2 ref={heading} tabIndex={-1}>{done ? `${hits} de ${LENGTH} en su lugar.` : '¿En qué orden estaban?'}</h2>
+      <ol className="lab-slots" aria-label="Tu respuesta">{trial.sequence.map((_, i) => {
         const shape = placed[i];
         const state = done ? (shape === trial.sequence[i] ? 'ok' : 'miss') : '';
         return <li key={i} data-state={state}>{shape ? <><Symbol shape={shape} size={36} /><span>{shape}</span></> : <span className="lab-slot-empty">{i + 1}</span>}</li>;
@@ -174,11 +179,11 @@ export function Lab({ active, onMode, onDistract, onRelease }: {
         ? <><p className="lab-answer">Orden original: {trial.sequence.join(' · ')}.</p><div className="lab-actions"><button className="lab-primary" onClick={next}>Continuar</button>{exit}</div></>
         : <>
           <div className="lab-palette" role="group" aria-label="Símbolos disponibles">{trial.palette.map(s =>
-            <button key={s} disabled={placed.includes(s) || placed.length >= 4} onClick={() => setPlaced(p => [...p, s])}><Symbol shape={s} size={34} /><span>{s}</span></button>)}
+            <button key={s} disabled={placed.includes(s) || placed.length >= LENGTH} onClick={() => setPlaced(p => [...p, s])}><Symbol shape={s} size={34} /><span>{s}</span></button>)}
           </div>
-          <p className="visually-hidden" aria-live="polite">{placed.length ? `Colocado: ${placed.at(-1)}, ${placed.length} de 4.` : ''}</p>
+          <p className="visually-hidden" aria-live="polite">{placed.length ? `Colocado: ${placed.at(-1)}, ${placed.length} de ${LENGTH}.` : ''}</p>
           <div className="lab-actions">
-            <button className="lab-primary" disabled={placed.length < 4} onClick={check}>Comprobar</button>
+            <button className="lab-primary" disabled={placed.length < LENGTH} onClick={check}>Comprobar</button>
             <button disabled={!placed.length} onClick={() => { correctionsThisTrial.current++; setPlaced(p => p.slice(0, -1)); }}>Deshacer</button>
             {exit}
           </div>

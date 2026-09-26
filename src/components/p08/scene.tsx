@@ -6,6 +6,7 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import * as THREE from 'three';
 import { createCosmos } from './cosmos';
+import { handoff } from '../descanso/handoff';
 
 gsap.registerPlugin(useGSAP, ScrollTrigger);
 const clamp = (n: number) => Math.max(0, Math.min(1, n));
@@ -27,7 +28,7 @@ const chapters = [
   ['03 / UNA SEMANA', 'Damos forma a nuestros días.', 'La semana organiza el tiempo de otra manera: su historia incluye tradiciones culturales y religiosas.', 'Siete días · un ritmo de calendario'],
 ];
 
-export default function P08Scene({ onChoice, choice, pausa }: { onChoice: (choice: 'bible' | 'close') => void; choice: 'bible' | 'close' | null; pausa?: string | null }) {
+export default function P08Scene({ onChoice, choice, pausa, lead = 0, onReading }: { onChoice: (choice: 'bible' | 'close') => void; choice: 'bible' | 'close' | null; pausa?: string | null; lead?: number; onReading?: () => void }) {
   const root = useRef<HTMLDivElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const cards = useRef<HTMLOListElement>(null);
@@ -79,11 +80,16 @@ export default function P08Scene({ onChoice, choice, pausa }: { onChoice: (choic
     const cardElements = Array.from(cards.current!.children) as HTMLElement[];
     const captionElements = Array.from(captions.current!.children) as HTMLElement[];
     const cardSetters = cardElements.map(el => ({ x: gsap.quickSetter(el, 'x', 'px'), y: gsap.quickSetter(el, 'y', 'px'), scaleX: gsap.quickSetter(el, 'scaleX'), scaleY: gsap.quickSetter(el, 'scaleY'), rotation: gsap.quickSetter(el, 'rotation', 'deg'), opacity: gsap.quickSetter(el, 'opacity') }));
-    const canDrag = () => playhead.p >= .42 && playhead.p < .76;
+    // Con `lead`, la escena espera quieta mientras se funde sobre el globo de P07.
+    const progress = () => lead ? ramp(playhead.p, lead, 1) : playhead.p;
+    const canDrag = () => progress() >= .42 && progress() < .76;
     const resize = () => {
       width = holder.clientWidth; height = holder.clientHeight;
       camera.aspect = width / Math.max(height, 1); camera.updateProjectionMatrix();
       renderer.setSize(width, height); state.dirty = true;
+      // Dónde aparece la Tierra al inicio (distancia 2,65, radio 0,58, fov 40°): P07 crece hasta aquí.
+      const hr = holder.getBoundingClientRect(), sr = section.querySelector('.p08-stage')!.getBoundingClientRect();
+      handoff.earth = { x: hr.left - sr.left + hr.width / 2, y: hr.top - sr.top + hr.height / 2, r: height / 2 * Math.tan(Math.asin(.58 / 2.65)) / Math.tan(THREE.MathUtils.degToRad(20)) };
     };
     const observer = new ResizeObserver(resize); observer.observe(holder); resize();
     const timeline = gsap.to(playhead, { p: 1, ease: 'none', scrollTrigger: {
@@ -117,7 +123,7 @@ export default function P08Scene({ onChoice, choice, pausa }: { onChoice: (choic
     canvas.addEventListener('webglcontextlost', contextLost);
     const render = (_time: number, delta: number) => {
       if (document.hidden || !visible) return;
-      const p = playhead.p;
+      const p = progress();
       const autonomous = p >= .22 && p < .94 && !state.paused;
       if (!state.dirty && !autonomous) return;
       state.dirty = false;
@@ -196,7 +202,7 @@ export default function P08Scene({ onChoice, choice, pausa }: { onChoice: (choic
       document.removeEventListener('visibilitychange', tabVisibility);
       canvas.removeEventListener('pointerdown', down); canvas.removeEventListener('pointermove', move); canvas.removeEventListener('pointerup', up); canvas.removeEventListener('pointercancel', up); canvas.removeEventListener('webglcontextlost', contextLost);
       scene.traverse(object => { const mesh = object as THREE.Mesh; mesh.geometry?.dispose(); if (mesh.material) (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).forEach(material => material.dispose()); });
-      cosmos.dispose(); renderer.dispose(); canvas.remove();
+      handoff.earth = null; cosmos.dispose(); renderer.dispose(); canvas.remove();
     };
   }, { scope: root, dependencies: [failed], revertOnUpdate: true });
 
@@ -216,7 +222,7 @@ export default function P08Scene({ onChoice, choice, pausa }: { onChoice: (choic
         <div className="p08-orbit-controls"><button onClick={pause} aria-pressed={paused}>{paused ? 'Reanudar órbita' : 'Pausar órbita'}</button><button onClick={() => rotate(-.25)} aria-label="Girar perspectiva a la izquierda">←</button><button onClick={() => rotate(.25)} aria-label="Girar perspectiva a la derecha">→</button><button onClick={reset}>Restablecer vista</button></div>
         <p className="p08-drag-hint">Arrastra a los lados para cambiar de perspectiva. Sigue bajando para continuar.</p>
         <p className="p08-scroll-hint">Desplázate para continuar ↓</p>
-        <span>Tamaños, distancias y velocidad simplificados.</span><a href="#lectura">Explicación y fuentes ↓</a>
+        <span>Tamaños, distancias y velocidad simplificados.</span>{onReading && <button className="p08-reading-toggle" onClick={onReading}>Leer sin movimiento</button>}<a href="#lectura">Explicación y fuentes ↓</a>
       </div>
     </div>
   </div>;
