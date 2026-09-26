@@ -8,5 +8,5 @@ export function Favorite({fixed=false}:{fixed?:boolean}){
   let response=await fetch('/api/preferences',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'initialize'})});let data=await response.json();if(!response.ok)throw new Error(data.error);
   response=await fetch('/api/preferences',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({active:!active,revision,requestId:crypto.randomUUID()})});data=await response.json();if(!response.ok)throw new Error(data.error);setActive(data.active);setRevision(data.revision);
  }catch(e){setError(e instanceof Error?e.message:'No pudimos guardar.');await load().catch(()=>{});}finally{setBusy(false);}}
- return <div className={fixed?'favorite favorite-fixed':'favorite'}><button disabled={busy} aria-pressed={active} onClick={toggle}><span aria-hidden="true">{active?'♥':'♡'}</span>{active?'Te encanta este tema':'Me encanta este tema'}</button>{error&&<p role="alert">{error}</p>}</div>;
+ return <div className={fixed?'favorite favorite-fixed':'favorite'}><button disabled={busy} aria-pressed={active} onClick={toggle}><span aria-hidden="true">{active?'♥':'♡'}</span><span className="favorite-label">{active?'Te encanta este tema':'Me encanta este tema'}</span></button>{error&&<p role="alert">{error}</p>}</div>;
 }

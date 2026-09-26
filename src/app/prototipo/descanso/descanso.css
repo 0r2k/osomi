@@ -1,5 +1,5 @@
 /* Sonido global del recorrido */
-.sound-toggle{position:fixed;right:16px;top:16px;z-index:30;padding:10px 16px;min-height:44px;border-radius:40px;border:1px solid #ffffff40;background:#10182acc;color:#f3ead9;font-size:13px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.sound-toggle{position:fixed;right:16px;top:96px;display:flex;align-items:center;gap:8px;z-index:30;padding:10px 16px;min-height:44px;border-radius:40px;border:1px solid #ffffff40;background:#10182acc;color:#f3ead9;font-size:13px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .sound-toggle[aria-pressed=true]{background:#f3ead9;color:#10182a}
 .opening-page{background:#05080f}
 .opening-page .opening{background:#05080f}
@@ -115,3 +115,7 @@
 @media(prefers-reduced-motion:reduce){.rhythm-spots button i::before{animation:none}.opening-toast{animation:none}.rhythm-copy,.rhythm-clock{transition:none}}
 .rhythm-clock{padding:10px 16px 12px;border-radius:18px;background:#05080f59;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
 [data-light=true] .rhythm-clock{background:#ffffff5c}
+@media(max-width:600px){
+  .sound-toggle{top:auto;right:80px;bottom:16px;width:52px;height:52px;padding:0;justify-content:center;border-radius:50%}
+  .sound-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+}
