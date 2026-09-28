@@ -20,6 +20,6 @@ export function DescansoExperience() {
     <SoundToggle />
     <Opening pausa={pausa} onPausa={setPausa} onUnlock={toRhythms} />
     {reached >= 1 && <Rhythms intencion={intencion} onIntencion={setIntencion} onUnlock={toEarth} pausa={pausa} />}
-    {reached >= 2 && <><P08Experience pausa={pausa} embedded /><P08Reading /></>}
+    {reached >= 2 && <><P08Experience pausa={pausa} intencion={intencion} embedded /><P08Reading /></>}
   </SoundProvider>;
 }

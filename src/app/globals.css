@@ -3,3 +3,4 @@
 
 /* En móvil el favorito muestra solo el corazón; el texto sigue disponible para lectores de pantalla. */
 @media(max-width:600px){.favorite-fixed .favorite-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}.favorite-fixed button{width:52px;height:52px;padding:0;justify-content:center;border-radius:50%}}
+.favorite button .favorite-label{font-size:inherit;line-height:inherit}

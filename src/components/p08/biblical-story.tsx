@@ -111,7 +111,7 @@ export function BiblicalStory({ reading, scrollRequest, onClose }: { reading: bo
     {passages.map((passage, index) => <article className="p10-chapter" data-side={cardOnLeft(index) ? 'right' : 'left'} key={passage.reference}>
       <div className="p10-copy"><p className="eyebrow">PERSPECTIVA BÍBLICA · INTERPRETACIÓN ADVENTISTA</p><span className="p10-number">0{index + 1} / 04</span><h2 tabIndex={-1}>{passage.title}</h2><p>{passage.text}</p><ul className="p10-words">{passage.words.map(word => <li key={word}>{word}</li>)}</ul><button onClick={event => open(index, event.currentTarget)}>{index === 3 ? 'Consultar la fuente' : 'Explorar la referencia'} · {passage.reference}</button></div>
     </article>)}
-    <div className="p10-exit"><a href="#escena">Volver al calendario ↑</a><button onClick={onClose}>Ir al cierre del prototipo</button></div>
+    <div className="p10-exit"><a href="#escena">Volver al calendario ↑</a><button onClick={onClose}>Continuar: lo que descubriste ↓</button></div>
     <p ref={hint} className="p10-hint" aria-hidden="true">Sigue hacia abajo ↓</p>
     <dialog ref={dialog} className="p10-dialog" aria-labelledby="p10-reference-title" onClose={() => opener.current?.focus({ preventScroll: true })}>
       <button className="p10-dialog-close" onClick={() => dialog.current?.close()} autoFocus>Cerrar ×</button><p className="eyebrow">REFERENCIA Y CONTEXTO</p><h2 id="p10-reference-title">{passages[selected].reference}</h2><p>{passages[selected].context}</p><p className="p10-note">Resumen editorial del pasaje o de la creencia; no es una cita literal de una traducción bíblica.</p><a href="https://gc.adventist.org/beliefs/" target="_blank" rel="noreferrer">Consultar las creencias adventistas oficiales ↗</a>

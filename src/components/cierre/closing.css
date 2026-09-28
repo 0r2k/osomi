@@ -1,0 +1,99 @@
+/* P11–P12: de la noche espacial de P10 a un amanecer cálido, el mismo tono con que empezó el recorrido. */
+.closing{position:relative;color:#f2efe5;background:#05080f;scroll-margin-top:0;outline:none}
+.closing .eyebrow{letter-spacing:.18em;font-size:11px;opacity:.7}
+.closing h2{font:400 clamp(34px,5vw,58px)/1.1 Georgia,serif;margin:10px 0 14px}
+.closing h3{font:400 clamp(22px,2.6vw,28px)/1.25 Georgia,serif;margin:0 0 12px}
+.closing-lead{font-size:18px;line-height:1.6;max-width:36rem;margin:0 auto 32px;opacity:.85}
+.closing-note{font-size:13px;line-height:1.55;opacity:.7}
+.closing-quiz{max-width:760px;margin:0 auto;padding:18svh 24px 12svh;text-align:center;background-image:radial-gradient(1px 1px at 12% 20%,#fff9 50%,transparent),radial-gradient(1px 1px at 78% 12%,#fff8 50%,transparent),radial-gradient(1.5px 1.5px at 60% 40%,#fff7 50%,transparent),radial-gradient(1px 1px at 30% 70%,#fff6 50%,transparent),radial-gradient(1px 1px at 88% 64%,#fff8 50%,transparent)}
+
+.quiz-tabs{display:flex;justify-content:center;gap:10px;list-style:none;padding:0;margin:0 0 26px}
+.quiz-tabs button{width:44px;height:56px;border-radius:6px;border:0;border-top:5px solid #b5a27b;background:#ede9dc55;color:#f2efe5;font:20px Georgia,serif;transition:transform .3s ease,background .3s ease}
+.quiz-tabs [data-state=current] button{background:#ede9dc;color:#334238;transform:translateY(-6px)}
+.quiz-tabs [data-state=done] button{background:#f4bf72;color:#334238}
+
+.quiz-card{background:#ede9dc;color:#2c3a31;border-top:10px solid #b5a27b;border-radius:14px;padding:28px 30px 24px;text-align:left;box-shadow:0 30px 80px #0008}
+.quiz-count{font-size:11px;letter-spacing:.16em;color:#7a6a48;margin:0 0 10px;text-transform:uppercase}
+.quiz-card h3{color:#223027}
+.quiz-options{display:grid;gap:10px;margin:18px 0}
+.quiz-options button{text-align:left;min-height:52px;padding:12px 18px;border-radius:12px;border:1px solid #b8b3a4;background:#faf8f3;color:#223027;font-size:16px;line-height:1.4;transition:border-color .2s,background .2s}
+.quiz-options button:not(:disabled):hover{border-color:#8a6d3b}
+.quiz-options button:disabled{cursor:default;opacity:1}
+.quiz-options [data-state=right]{border-color:#3f7a5c;background:#e3eee5;box-shadow:inset 0 0 0 1px #3f7a5c}
+.quiz-options [data-state=chosen]{border-color:#b86a4a;background:#f6e6de}
+.quiz-feedback{padding:14px 16px;border-left:3px solid #b86a4a;background:#f6efe4;border-radius:6px;font-size:15px;line-height:1.6}
+.quiz-feedback[data-right=true]{border-color:#3f7a5c}
+.quiz-feedback a{display:block;margin-top:8px;font-size:13px;color:#6b4d2a}
+.quiz-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px;margin-top:16px}
+.quiz-actions button,.closing-link{min-height:44px;padding:10px 18px;border-radius:40px;border:1px solid #8f9587;background:transparent;color:#2c3a31;font-size:14px}
+.quiz-actions .quiz-next{background:#293e33;border-color:#293e33;color:#fff}
+.quiz-summary ul{padding-left:20px;line-height:1.8;font-size:16px}
+.quiz-summary .closing-note{color:#4a554d;opacity:1}
+
+.closing-reflect{margin-top:9svh}
+.closing-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:16px}
+.closing-chips button{min-height:44px;padding:10px 16px;border-radius:40px;border:1px solid #ffffff4d;background:#ffffff0d;color:#f2efe5;font-size:14px}
+.closing-chips button[aria-pressed=true]{background:#f4bf72;border-color:#f4bf72;color:#223027}
+
+/* Amanecer */
+.closing-dawn{position:relative;height:80svh;overflow:hidden;background:linear-gradient(#05080f 0%,#141b3a 22%,#3d3560 44%,#b86f63 66%,#eeb488 82%,#f3e9dc 100%)}
+.closing-sun{position:absolute;left:50%;bottom:6%;width:min(34vw,260px);aspect-ratio:1;margin-left:max(-17vw,-130px);border-radius:50%;background:radial-gradient(circle,#fff4d6 0%,#ffd08a 45%,#f6a868 70%,#f6a86800 72%);filter:blur(.3px)}
+.closing-horizon{position:absolute;left:0;right:0;bottom:0;height:22%;background:linear-gradient(#f3e9dc00,#f3e9dc 70%)}
+
+/* P12 */
+.closing-choose{background:#f3e9dc;color:#1d2430;text-align:center;padding:0 24px 18svh}
+.closing-bust{display:block;width:min(180px,40vw);margin:0 auto 18px;fill:#2a3140}
+.closing-choose .closing-lead{opacity:.8}
+.paths{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;max-width:1100px;margin:0 auto;text-align:left}
+.path{display:flex;flex-direction:column;gap:6px;padding:26px 24px;border-radius:18px;background:#faf8f3;box-shadow:0 18px 50px #1d24301a;border-top:6px solid #b5a27b}
+.path .eyebrow{color:#7a6a48;opacity:1;margin:0}
+.path p{margin:0 0 10px;line-height:1.6;font-size:15px}
+.path-topics{list-style:none;padding:0;margin:4px 0 12px;display:grid;gap:8px}
+.path-topics li{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:10px 0;border-top:1px solid #d9d3c6;font-size:15px}
+.path-topics small{flex:none;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8a6d3b}
+.path-action{margin-top:auto;align-self:flex-start;display:inline-block;padding:12px 20px;border-radius:40px;background:#293e33;border:1px solid #293e33;color:#fff;text-decoration:none;font-size:15px}
+.path-status{padding:12px 14px;border-radius:10px;background:#efe9df;font-size:14px!important;color:#4a554d}
+.path-question{max-width:720px;margin:34px auto 0;padding:22px 26px;border-radius:18px;border:1px dashed #b5a27b;text-align:left}
+.path-question p{margin:0;line-height:1.6;font-size:15px}
+.closing-end{margin-top:28px}
+
+/* Libro (vista plana; la versión 3D queda para una fase posterior) */
+.book{width:min(920px,calc(100% - 24px));max-height:calc(100svh - 32px);padding:0;border:0;border-radius:18px;background:#f7f3ea;color:#223027;overflow:hidden}
+.book[open]{display:grid;grid-template-columns:220px 1fr;grid-template-rows:auto 1fr auto}
+.book::backdrop{background:#05080fcc}
+.book header{grid-column:1/-1;display:flex;align-items:center;gap:16px;padding:18px 24px;border-bottom:1px solid #ddd6c7}
+.book header h2{font:26px Georgia,serif;margin:0;flex:1}
+.book header .eyebrow{margin:0;font-size:10px;letter-spacing:.14em;color:#7a6a48;display:none}
+.book header button{border:1px solid #9aa196;background:none;border-radius:30px;padding:8px 14px}
+.book nav{border-right:1px solid #ddd6c7;padding:14px 10px;overflow:auto}
+.book nav ol{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.book nav button{width:100%;text-align:left;padding:10px 12px;border:0;border-radius:10px;background:none;color:#223027;font-size:14px}
+.book nav button[aria-current=page]{background:#e7dfcd;font-weight:600}
+.book-page{padding:26px 34px;overflow:auto;font-size:16px;line-height:1.75;background:linear-gradient(90deg,#00000008,#0000 18px)}
+.book-page h3{font:28px Georgia,serif;margin:0 0 14px}
+.book-list{padding-left:20px}
+.book-list li{margin-bottom:10px}
+.book-note{font-size:13px;color:#5d6a60}
+.book-page textarea{width:100%;min-height:180px;padding:14px;border:1px solid #c9c2b1;border-radius:10px;background:#fffdf8;font:16px/1.6 Georgia,serif;color:#223027;resize:vertical}
+.book footer{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;padding:12px 24px;border-top:1px solid #ddd6c7;font-size:13px}
+.book footer button{border:1px solid #9aa196;background:none;border-radius:30px;padding:8px 14px}
+.book footer button:disabled{opacity:.35;cursor:default}
+
+@media(max-width:800px){
+  .paths{grid-template-columns:1fr}
+  .book[open]{grid-template-columns:1fr;grid-template-rows:auto auto 1fr auto}
+  .book nav{border-right:0;border-bottom:1px solid #ddd6c7;padding:8px}
+  .book nav ol{display:flex;overflow-x:auto;gap:6px}
+  .book nav button{white-space:nowrap}
+  .book-page{padding:20px}
+  .quiz-card{padding:22px 18px 18px}
+  .quiz-tabs button{width:38px;height:50px}
+}
+@media(prefers-reduced-motion:reduce){.quiz-tabs button{transition:none}}
+.closing .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.book-page{min-height:0}
+/* La persona del inicio, ahora sin demandas, a la luz del amanecer. */
+.closing-choose{position:relative}
+.closing-choose::before{content:'';position:absolute;left:50%;top:-40px;width:min(520px,110vw);height:320px;transform:translateX(-50%);background:radial-gradient(closest-side,#ffd9a0cc,#ffd9a000);pointer-events:none}
+.closing-bust{position:relative;fill:#2a3140;filter:drop-shadow(0 0 1px #ffd9a0) drop-shadow(0 10px 30px #c98e6e55)}
+.closing-choose>*{position:relative}
