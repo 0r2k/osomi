@@ -6,35 +6,13 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useSound } from '../descanso/sound';
 import './closing.css';
+import { PASSAGES, QUESTIONS, SOURCES, type SourceKey } from './content';
+import { Book3D } from '../libro/book';
 
 gsap.registerPlugin(ScrollTrigger);
 
 // P11 · Comprender y P12 · Elegir. Sin reloj ni nota que bloquee: responder, revisar o continuar.
 // Las elecciones viven en memoria durante la visita; nada de esto es analítica.
-
-const SOURCES = {
-  S1: { label: 'NHLBI · Why Is Sleep Important?', href: 'https://www.nhlbi.nih.gov/health/sleep/why-sleep-important', scope: 'Síntesis institucional sobre sueño, salud, aprendizaje y memoria. No describe casos personales.' },
-  S2: { label: 'NHLBI · Your Sleep/Wake Cycle', href: 'https://www.nhlbi.nih.gov/health/sleep/sleep-wake-cycle', scope: 'Ritmos circadianos cercanos a 24 horas y su relación con la luz. No implica un ciclo semanal.' },
-  A1: { label: 'NASA · Día solar y sideral', href: 'https://science.nasa.gov/learn/basics-of-space-flight/chapter2-1/', scope: 'Diferencia entre el día solar medio (≈24 h) y el sideral (≈23 h 56 min).' },
-  A2: { label: 'NASA · Datos de la Tierra', href: 'https://science.nasa.gov/earth/facts/', scope: 'Rotación y órbita terrestre; cifras aproximadas de divulgación.' },
-  H1: { label: 'UCL · La semana de siete días', href: 'https://www.ucl.ac.uk/arts-humanities/hebrew-jewish/hjs-research/research-projects-hjs/calendars-late-antiquity-and-middle-ages-standardization-and-fixation/seven-day-week-roman-empire-and-near-east', scope: 'Tradiciones de la semana del sábado y la semana planetaria. Orienta la cautela histórica.' },
-  B1: { label: 'Iglesia Adventista · Creencia fundamental 20', href: 'https://gc.adventist.org/beliefs/', scope: 'Fuente doctrinal, no científica: el sábado como día de descanso, adoración y servicio.' },
-} as const;
-type SourceKey = keyof typeof SOURCES;
-
-type Question = { id: string; ask: string; options: string[]; answer: number; feedback: string; takeaway: string; source: SourceKey | null; biblical?: boolean };
-const QUESTIONS: Question[] = [
-  { id: 'lab', ask: '¿Qué puede mostrar la actividad de las dos rondas?', options: ['Cómo te fue en esas condiciones de juego', 'Tu nivel de estrés clínico', 'Cuánto necesitas dormir'], answer: 0,
-    feedback: 'Fue una demostración educativa: describe un momento de juego, influido por la práctica, el azar y el dispositivo. No diagnostica tu salud ni tu atención.', takeaway: 'Una prueba breve permite observar, no diagnosticar.', source: null },
-  { id: 'ritmo', ask: 'Los ritmos circadianos describen principalmente un ciclo cercano a…', options: ['24 horas', 'Siete días', 'Un mes'], answer: 0,
-    feedback: 'El organismo tiene ritmos cercanos a 24 horas, y la luz y la oscuridad ayudan a sincronizarlos. No son evidencia de un ciclo semanal.', takeaway: 'Tu cuerpo sigue ritmos cercanos a 24 horas.', source: 'S2' },
-  { id: 'semana', ask: '¿Qué mostró la escena de la Tierra y las siete fichas?', options: ['Dos movimientos astronómicos y un ritmo de calendario', 'Que la semana es una órbita de siete días', 'Que la astronomía demuestra el sábado'], answer: 0,
-    feedback: 'El día y el año se relacionan con movimientos de la Tierra. La semana es un ritmo de calendario con historia cultural y religiosa; la escena no la presenta como un fenómeno astronómico.', takeaway: 'Día y año son astronomía; la semana es calendario con historia.', source: 'H1' },
-  { id: 'evidencia', ask: '¿Qué diferencia hay entre consultar evidencia y hacer una reflexión personal?', options: ['La evidencia sustenta afirmaciones verificables; la reflexión explora su sentido para tu vida', 'Son lo mismo', 'La reflexión demuestra lo que dice la evidencia'], answer: 0,
-    feedback: 'Las dos tienen su lugar, pero no son intercambiables: una fuente respalda lo que se afirma; la reflexión es tuya y no tiene respuesta correcta.', takeaway: 'Evidencia y reflexión se complementan, sin sustituirse.', source: null },
-  { id: 'sabado', ask: '¿Cómo presentó esta experiencia el sábado adventista?', options: ['Un tiempo de descanso, adoración y servicio', 'Exclusivamente dormir más', 'Una técnica para trabajar más'], answer: 0, biblical: true,
-    feedback: 'Desde la perspectiva adventista, el sábado es el séptimo día dedicado al descanso, la adoración y el servicio: un encuentro con Dios y con otras personas. Es una creencia; puedes comprenderla sin compartirla.', takeaway: 'El sábado adventista: descanso, adoración y servicio.', source: 'B1' },
-];
 
 const NEXT_TOPICS: { id: string; title: string; fits: string[] }[] = [
   { id: 'descansar', title: '¿Qué significa realmente descansar?', fits: ['pausa', 'preocupaciones', 'ninguna'] },
@@ -47,12 +25,6 @@ const NEXT_TOPICS: { id: string; title: string; fits: string[] }[] = [
 const PAUSA_TEXT: Record<string, string> = { trabajo: 'el trabajo', telefono: 'el teléfono', responsabilidades: 'tus responsabilidades', preocupaciones: 'tus preocupaciones' };
 const INTENCION_TEXT: Record<string, string> = { relaciones: 'tus relaciones', contemplacion: 'contemplar sin prisa', servicio: 'servir a otros', pausa: 'pausar tus tareas' };
 
-const PASSAGES = [
-  ['Génesis 2:1–3', 'Al cerrar el relato de la creación, Dios descansa en el séptimo día, lo bendice y lo aparta.'],
-  ['Éxodo 20:8–11', 'El mandamiento del sábado incluye a la familia, a quienes trabajan, a los animales y al extranjero.'],
-  ['Marcos 2:23–28', 'Jesús explica que el sábado fue hecho para el ser humano.'],
-  ['Creencia adventista 20', 'El sábado como día de descanso, adoración y servicio, en comunión con Dios y con otros.'],
-];
 
 function Bust() {
   // La misma silueta de la apertura, ahora sin demandas alrededor.
@@ -71,6 +43,8 @@ export function Closing({ biblical, pausa, intencion, onExploreBible }: { biblic
   const [interests, setInterests] = useState<string[]>([]);
   const [bookPage, setBookPage] = useState(0);
   const [note, setNote] = useState('');
+  const [book3d, setBook3d] = useState(false);
+  const book3dOpener = useRef<HTMLButtonElement | null>(null);
   const card = useRef<HTMLDivElement>(null);
   const dawn = useRef<HTMLDivElement>(null);
   const book = useRef<HTMLDialogElement>(null);
@@ -209,7 +183,7 @@ export function Closing({ biblical, pausa, intencion, onExploreBible }: { biblic
           <p className="eyebrow">EXPLORARLO POR MI CUENTA</p>
           <h3>El libro de este tema</h3>
           <p>Resumen, lo que descubriste, pasajes, fuentes y preguntas para reflexionar. Puedes tomar notas.</p>
-          <button className="path-action" onClick={event => openBook(event.currentTarget)}>Abrir el libro</button>
+          <button className="path-action" onClick={event => { book3dOpener.current = event.currentTarget; setBook3d(true); }}>Abrir el libro</button>
         </article>
         <article className="path">
           <p className="eyebrow">EXPLORARLO CON ALGUIEN</p>
@@ -226,6 +200,10 @@ export function Closing({ biblical, pausa, intencion, onExploreBible }: { biblic
       <p className="closing-note closing-end">Tu «Me encanta este tema» sigue disponible en la esquina, durante todo el recorrido.</p>
     </div>
 
+    <Book3D open={book3d} biblical={biblical} note={note} setNote={setNote}
+      takeaways={questions.map(item => ({ text: item.takeaway, source: item.source }))}
+      onClose={() => { setBook3d(false); book3dOpener.current?.focus({ preventScroll: true }); }}
+      onFlat={() => { setBook3d(false); if (book3dOpener.current) openBook(book3dOpener.current); }} />
     <dialog ref={book} className="book" aria-labelledby="book-title" onClose={() => bookOpener.current?.focus({ preventScroll: true })}>
       <header><p className="eyebrow">¿POR QUÉ NECESITO DESCANSAR?</p><h2 id="book-title">El libro del tema</h2><button onClick={() => book.current?.close()}>Cerrar ×</button></header>
       <nav aria-label="Índice del libro"><ol>{pages.map(([title], i) => <li key={title}><button aria-current={i === bookPage ? 'page' : undefined} onClick={() => setBookPage(i)}>{title}</button></li>)}</ol></nav>

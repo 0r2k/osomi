@@ -31,6 +31,7 @@ export class OpeningAudio {
   private noiseFilter: BiquadFilterNode;
   private padGain: GainNode;
   private padFilter: BiquadFilterNode;
+  private noise: AudioBuffer;
   enabled = false;
 
   constructor() {
@@ -67,7 +68,8 @@ export class OpeningAudio {
 
     // Ruido difuso de ciudad y oficina.
     const noise = ctx.createBufferSource();
-    noise.buffer = noiseBuffer(ctx);
+    this.noise = noiseBuffer(ctx);
+    noise.buffer = this.noise;
     noise.loop = true;
     this.noiseFilter = ctx.createBiquadFilter();
     this.noiseFilter.type = 'bandpass';
@@ -181,6 +183,34 @@ export class OpeningAudio {
       panner.connect(this.master);
       const send = this.ctx.createGain(); send.gain.value = .15; panner.connect(send).connect(this.reverb);
     });
+  }
+
+  /** Roce de papel al pasar una hoja: ruido filtrado que barre hacia agudos y un leve asentamiento. */
+  pageTurn(delay = 0, weight = 1) {
+    if (!this.enabled) return;
+    const t = this.ctx.currentTime + delay;
+    const src = this.ctx.createBufferSource(); src.buffer = this.noise;
+    const band = this.ctx.createBiquadFilter(); band.type = 'bandpass'; band.Q.value = .8;
+    band.frequency.setValueAtTime(700, t); band.frequency.exponentialRampToValueAtTime(3400, t + .3);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.13 * weight, t + .06); g.gain.exponentialRampToValueAtTime(.0001, t + .45);
+    src.connect(band).connect(g).connect(this.master);
+    src.start(t, Math.random() * 1.4, .5);
+    const thump = this.ctx.createOscillator(), tg = this.ctx.createGain();
+    thump.frequency.value = 95;
+    tg.gain.setValueAtTime(0, t + .36); tg.gain.linearRampToValueAtTime(.05 * weight, t + .38); tg.gain.exponentialRampToValueAtTime(.0001, t + .55);
+    thump.connect(tg).connect(this.master); thump.start(t + .34); thump.stop(t + .6);
+  }
+
+  /** La tapa del libro se abre: golpe grave y el roce de la guarda. */
+  bookOpen() {
+    if (!this.enabled) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(80, t); o.frequency.exponentialRampToValueAtTime(52, t + .3);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.12, t + .02); g.gain.exponentialRampToValueAtTime(.0001, t + .4);
+    o.connect(g).connect(this.master); o.start(t); o.stop(t + .45);
+    this.pageTurn(.35, 1.3);
   }
 
   /** Campana suave: una demanda que se deja en pausa. */

@@ -1,0 +1,43 @@
+/* Libro del tema: mesa cálida, libro en canvas y páginas HTML encima cuando están quietas. */
+.book3d{width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;padding:0;border:0;color:#223027;background:radial-gradient(ellipse at 50% 42%,#f4ede0 0%,#e6dccb 60%,#d6c9b3 100%)}
+.book3d[open]{display:grid;grid-template-rows:auto minmax(0,1fr) auto}
+.book3d::backdrop{background:#05080f}
+.book3d-head{display:flex;align-items:center;gap:10px;padding:14px 20px}
+.book3d-head h2{flex:1;margin:0;font:400 22px Georgia,serif}
+.book3d-head button,.book3d-foot button{min-height:44px;padding:8px 16px;border-radius:40px;border:1px solid #9d9585;background:#fbf8f1cc;color:#223027;font-size:14px}
+.book3d-foot button:disabled{opacity:.35;cursor:default}
+.book3d-stage{position:relative;overflow:hidden;touch-action:none;user-select:none}
+.book3d-stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.book3d-pages{position:absolute;inset:0;pointer-events:none}
+.book3d-open{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);min-height:48px;padding:12px 26px;border-radius:40px;border:0;background:#293e33;color:#fff;font-size:15px;box-shadow:0 10px 30px #1d243040}
+.book3d-foot{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px;padding:8px 16px 14px;font-size:13px}
+.book3d-foot>span{min-width:190px;text-align:center;color:#4a4436}
+.book3d-hint{width:100%;margin:2px 0 0;text-align:center;font-size:12px;color:#6b6152}
+
+/* Páginas: 420 × 600 de diseño, escaladas al tamaño del libro. Fondo transparente: el papel es el canvas. */
+.bk-page{position:absolute;left:0;top:0;width:420px;height:600px;box-sizing:border-box;padding:54px 48px 46px;overflow:hidden;transform-origin:0 0;visibility:hidden;pointer-events:auto;user-select:text;font:15.5px/1.62 Georgia,serif;color:#2d2a24}
+.bk-page h3{margin:0 0 14px;font:400 28px/1.18 Georgia,serif;color:#1f2a24}
+.bk-page p{margin:0 0 11px}
+.bk-page em{font-style:italic}
+.bk-page a{color:#6b4d2a;text-decoration:underline}
+.bk-eyebrow{margin:0 0 10px!important;font:600 10.5px/1.5 'Avenir Next','Segoe UI',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:#8a6d3b}
+.bk-title-page{text-align:center;padding-top:70px}
+.bk-title{font-size:32px!important;line-height:1.15!important;margin-bottom:6px!important}
+.bk-sub{font-style:italic;color:#6b6152}
+.bk-art{width:100%;margin:12px 0}
+.bk-small{font:13px/1.55 'Avenir Next','Segoe UI',sans-serif;color:#6b6152}
+.bk-item{display:flex;gap:8px}
+.bk-dash{color:#b08a4e}
+.bk-index{display:grid;margin:6px 0 18px}
+.bk-index button{display:flex;justify-content:space-between;align-items:baseline;width:100%;padding:11px 2px;border:0;border-bottom:1px dotted #c4b89c;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.bk-index button span:last-child{font:13px 'Avenir Next','Segoe UI',sans-serif;color:#8a6d3b}
+.bk-passage{margin-bottom:10px}
+.bk-ref{margin:0 0 2px!important;font:600 12px 'Avenir Next','Segoe UI',sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#8a6d3b}
+.bk-source{margin-bottom:12px}
+.bk-source a{font-size:15px}
+.bk-source p{margin:2px 0 0;font:13px/1.5 'Avenir Next','Segoe UI',sans-serif;color:#6b6152}
+.bk-page textarea{display:block;box-sizing:border-box;width:100%;height:330px;margin-top:6px;padding:14px;border:1px solid #cfc4ad;border-radius:6px;background:#fffdf7;color:#2d2a24;font:15px/1.6 Georgia,serif;resize:none}
+.bk-colophon{text-align:center;padding-top:90px}
+.bk-folio{position:absolute;left:0;right:0;bottom:22px;margin:0!important;text-align:center;font:11px 'Avenir Next','Segoe UI',sans-serif;letter-spacing:.12em;color:#a8987a}
+.book3d .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media(max-width:600px){.book3d-head{padding:10px 12px}.book3d-head h2{font-size:18px}.book3d-foot{gap:6px}.book3d-foot button{padding:8px 12px;font-size:13px}.book3d-foot>span{order:-1;width:100%}}
