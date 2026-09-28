@@ -61,8 +61,9 @@ function foil(g: CanvasRenderingContext2D, x0: number, x1: number) {
   return gold;
 }
 
-/** Tapa de tela azul noche con título en oro, las siete fichas y el nombre Osomi. */
-export function coverCanvas(w: number, h: number, scale: number) {
+/** Tapa de tela azul noche con título en oro, las siete fichas y el nombre Osomi.
+ *  La contratapa (`back`) lleva solo la séptima ficha, centrada: se ve igual reflejada. */
+export function coverCanvas(w: number, h: number, scale: number, back = false) {
   const c = canvas(w * scale, h * scale), g = c.getContext('2d')!, r = seeded(4);
   g.scale(scale, scale);
   const base = g.createLinearGradient(0, 0, w, h);
@@ -82,6 +83,13 @@ export function coverCanvas(w: number, h: number, scale: number) {
   const m = 26;
   g.strokeStyle = 'rgba(0,0,0,.35)'; g.lineWidth = 1.2; g.strokeRect(m + 14, m, w - 2 * m - 14, h - 2 * m);
   g.strokeStyle = 'rgba(240,210,140,.35)'; g.strokeRect(m + 15, m + 1, w - 2 * m - 14, h - 2 * m);
+  if (back) {
+    const x = w / 2 + 7, y = h * .5;
+    g.beginPath(); g.roundRect(x - 11, y - 15, 22, 30, 3);
+    g.fillStyle = foil(g, x - 12, x + 12); g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowOffsetY = 1; g.shadowBlur = 1; g.fill();
+    g.shadowColor = 'transparent';
+    return c;
+  }
   // Título en oro.
   g.textAlign = 'center'; g.textBaseline = 'alphabetic';
   const cx = w / 2 + 7;

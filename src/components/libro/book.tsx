@@ -18,6 +18,10 @@ const PW = 420, PH = 600, BOARD = 8;
 // `ghost-N`: reverso de la página N en móvil, con su tinta tenue y en espejo, como papel a contraluz.
 type Surface = number | 'endpaper' | 'back' | `ghost-${number}` | null;
 type Layout = { w: number; h: number; k: number; spread: boolean; spine: number; top: number; W: number; H: number; dpr: number };
+// Tapa en movimiento. `front`: la tapa gira sobre las hojas de la derecha (primera página).
+// `back`: el lado derecho —última hoja y contratapa— se cierra sobre la izquierda (última página).
+type Fold = { dir: 'front' | 'back'; k: number; under: number; inside: number | 'endpaper' };
+type Mode = 'closed' | 'moving' | 'open';
 type TurnState = {
   pages: { l0: Surface; r0: Surface; r1: Surface; l1: Surface };
   C: V; P: V; atC: number; atC2: number;
@@ -37,6 +41,19 @@ const INDEX: [string, number][] = [['Resumen', 2], ['Lo que descubriste', 3], ['
 const ease = (t: number) => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 const clamp = (v: number, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+const FRONT: Fold = { dir: 'front', k: 0, under: 0, inside: 'endpaper' };
+const mirrors = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+/** Copia en espejo: la tapa trasera se dibuja con la proyección reflejada y así su contenido queda al derecho. */
+function mirrored(src: HTMLCanvasElement) {
+  if (!mirrors.has(src)) {
+    const c = document.createElement('canvas');
+    c.width = src.width; c.height = src.height;
+    const g = c.getContext('2d')!;
+    g.translate(c.width, 0); g.scale(-1, 1); g.drawImage(src, 0, 0);
+    mirrors.set(src, c);
+  }
+  return mirrors.get(src)!;
+}
 
 export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNote }: {
   open: boolean; onClose: () => void; onFlat: () => void; biblical: boolean;
@@ -48,12 +65,14 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
   const tilt = useRef<HTMLDivElement>(null);
   const pageEls = useRef<(HTMLElement | null)[]>([]);
   const sound = useSound();
-  const [mode, setMode] = useState<'closed' | 'opening' | 'open' | 'closing'>('closed');
+  const [mode, setMode] = useState<Mode>('closed');
   const [spread, setSpread] = useState(0);
   const [turning, setTurning] = useState(false);
   const [single, setSingle] = useState(false);
   const S = useRef({
-    mode: 'closed' as 'closed' | 'opening' | 'open' | 'closing', openT: 0, openStart: 0, k: 0, closeAfterTurn: false,
+    mode: 'closed' as Mode, openT: 0, k: 0, fold: FRONT as Fold,
+    coverAnim: null as { from: number; to: number; t0: number; dur: number } | null,
+    coverDrag: null as { startX: number; startT: number; moved: boolean; lastX: number; lastT: number; vx: number; sounded: boolean } | null,
     turn: null as TurnState | null, layout: null as Layout | null, reduce: false,
     art: new Map<number, number>(), artBoxes: new Map<number, { x: number; y: number; w: number; h: number }>(),
     cache: new Map<string, HTMLCanvasElement>(), raf: 0, hinted: false,
@@ -132,34 +151,39 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
     let animating = false;
 
     if (st.mode !== 'open') {
-      // ---- Portada en 3D: la tapa gira sobre la bisagra y el libro se endereza.
-      if (st.mode === 'opening') {
-        st.openT = st.reduce ? 1 : clamp((now - st.openStart) / 1500);
-        animating = st.openT < 1;
+      // ---- Tapa en 3D: gira sobre la bisagra (arrastrada o animada) y el libro se endereza al abrirse.
+      const a = st.coverAnim;
+      if (a) {
+        const p = st.reduce ? 1 : clamp((now - a.t0) / a.dur);
+        st.openT = lerp(a.from, a.to, p);
+        if (p < 1) animating = true;
+        else {
+          st.coverAnim = null;
+          if (a.to === 1) {
+            st.mode = 'open'; st.k = st.fold.k; setSpread(st.k); setMode('open');
+            return true;   // el siguiente fotograma dibuja la página abierta
+          }
+          st.mode = 'closed'; setMode('closed');
+        }
       }
-      // Cerrar es la apertura al revés.
-      if (st.mode === 'closing') {
-        st.openT = st.reduce ? 0 : 1 - clamp((now - st.openStart) / 1300);
-        animating = st.openT > 0;
-        if (st.openT <= 0) { st.mode = 'closed'; setMode('closed'); }
-      }
+      const fold = st.fold, back = fold.dir === 'back', m = back ? -1 : 1;
       const t = st.openT, e = ease(t), theta = Math.PI * ease(clamp((t - .12) / .88));
-      const closedSpine = L.spread ? L.w / 2 - W / 2 : L.spine;
-      const spine = lerp(closedSpine, L.spine, e);
+      const spine = lerp(L.w / 2 - m * W / 2, L.spine, e);
       const yaw = lerp(.22, 0, e), pitch = lerp(.1, 0, e), shrink = lerp(.86, 1, e), focal = Math.max(W, H) * 2.4, T = 14 * L.k;
-      const px = spine + W / 2, py = top + H / 2;
+      const py = top + H / 2;
+      // Con la tapa trasera, la proyección se refleja en el lomo (x → −x).
       const project = (x: number, y: number, z: number): V => {
         const X = x - W / 2, Y = y - H / 2;
         const x1 = X * Math.cos(yaw) + z * Math.sin(yaw), z1 = -X * Math.sin(yaw) + z * Math.cos(yaw);
         const y2 = Y * Math.cos(pitch) - z1 * Math.sin(pitch), z2 = Y * Math.sin(pitch) + z1 * Math.cos(pitch);
         const s = focal / (focal + z2) * shrink;
-        return { x: px + x1 * s, y: py + y2 * s };
+        return { x: spine + m * (W / 2 + x1 * s), y: py + y2 * s };
       };
       type P3 = [number, number, number];
       const add = (a: P3, b: P3, s: number): P3 => [a[0] + b[0] * s, a[1] + b[1] * s, a[2] + b[2] * s];
       const facing = (O: P3, U: P3, Vv: P3) => {
         const o = project(...O), u = project(...add(O, U, 1)), v = project(...add(O, Vv, 1));
-        return (u.x - o.x) * (v.y - o.y) - (u.y - o.y) * (v.x - o.x) > 0;
+        return ((u.x - o.x) * (v.y - o.y) - (u.y - o.y) * (v.x - o.x) > 0) !== back;
       };
       const quad = (O: P3, U: P3, Vv: P3, fill: string) => {
         const pts = [O, add(O, U, 1), add(add(O, U, 1), Vv, 1), add(O, Vv, 1)].map(p => project(...p));
@@ -178,6 +202,21 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
         }
         g.setTransform(dpr, 0, 0, dpr, 0, 0);
       };
+      // Texturas: hoja de abajo, cara interior de la tapa y su exterior.
+      const sc = L.k * L.dpr;
+      const underImg = cachedFull(fold.under)!;
+      const insideImg = fold.inside === 'endpaper'
+        ? texture(`inside:${sc}`, () => endpaperCanvas(PW + BOARD, PH + 2 * BOARD, sc, 'left'))
+        : texture(`board:${fold.inside}:${sc}`, () => {
+          // Última hoja pegada a la contratapa, que asoma unos milímetros por fuera.
+          const c = document.createElement('canvas');
+          c.width = Math.round((PW + BOARD) * sc); c.height = Math.round((PH + 2 * BOARD) * sc);
+          const g2 = c.getContext('2d')!;
+          g2.fillStyle = '#1b2440'; g2.fillRect(0, 0, c.width, c.height);
+          g2.drawImage(cachedFull(fold.inside)!, 0, Math.round(BOARD * sc));
+          return c;
+        });
+      const coverImg = texture(`${back ? "backcover" : "cover"}:${sc}`, () => coverCanvas(PW + BOARD, PH + 2 * BOARD, sc, back));
       // Sombra sobre la mesa.
       g.save();
       g.shadowColor = 'rgba(60,40,20,.35)'; g.shadowBlur = 50 * L.k; g.shadowOffsetY = 22 * L.k;
@@ -187,20 +226,16 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
       const edge = texture('edge', () => edgeCanvas(64, 256));
       if (facing([W, 0, 0], [0, 0, T], [0, H, 0])) plane(edge, [W, 0, 0], [0, 0, T], [0, H, 0]);
       if (facing([0, 0, 0], [W, 0, 0], [0, 0, T])) quad([0, 0, 0], [W, 0, 0], [0, 0, T], '#ece2cc');
-      // Primera página bajo la tapa.
-      const first = texture(`first:${L.k}:${L.dpr}:${(st.art.get(0) ?? 0) >= 1}`, () => full(rightOf(0))!);
-      plane(first, [0, 0, 0], [W, 0, 0], [0, H, 0]);
+      // Hoja que queda debajo de la tapa.
+      plane(back ? mirrored(underImg) : underImg, [0, 0, 0], [W, 0, 0], [0, H, 0]);
       if (theta < Math.PI / 2) {
         const pts = ([[0, 0, 0], [W, 0, 0], [W, H, 0], [0, H, 0]] as P3[]).map(p => project(...p));
         tracePath(g, pts); g.fillStyle = `rgba(20,14,6,${.35 * Math.cos(theta)})`; g.fill();
       }
       // La tapa.
       const O: P3 = [0, -B, -1.5 * (1 - e)], U: P3 = [(W + B) * Math.cos(theta), 0, -(W + B) * Math.sin(theta)], Vv: P3 = [0, H + 2 * B, 0];
-      if (facing(O, U, Vv)) plane(texture(`cover:${L.k}:${L.dpr}`, () => coverCanvas(PW + BOARD, PH + 2 * BOARD, L.k * L.dpr)), O, U, Vv);
-      else plane(texture(`inside:${L.k}:${L.dpr}`, () => endpaperCanvas(PW + BOARD, PH + 2 * BOARD, L.k * L.dpr, 'left')), O, U, Vv, true);
-      if (st.mode === 'opening' && st.openT >= 1) {
-        st.mode = 'open'; setMode('open');
-      }
+      if (facing(O, U, Vv)) plane(coverImg, O, U, Vv);
+      else plane(back ? mirrored(insideImg) : insideImg, O, U, Vv, true);
       return animating;
     }
 
@@ -258,7 +293,6 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
           const endK = Math.abs(a.to.x - turn.C.x) < 1 ? turn.atC : turn.atC2;
           st.turn = null; st.k = endK; st.hinted = true;
           setSpread(endK); setTurning(false);
-          if (st.closeAfterTurn && endK === 0) { st.closeAfterTurn = false; startClosing(); }
           g.restore();
           return true;   // el siguiente fotograma dibuja la doble página quieta
         }
@@ -321,13 +355,32 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
   }, [render]);
 
   // ---------- Disposición ----------
+  /** Páginas HTML: visibles solo si están quietas en la doble página actual. */
+  const placePages = useCallback(() => {
+    const st = S.current, L = st.layout;
+    if (!L) return;
+    const visible = new Map<number, number>();
+    if (st.mode === 'open' && !st.turn) {
+      if (L.spread && st.k > 0) visible.set(2 * st.k - 1, L.spine - L.W);
+      visible.set(L.spread ? 2 * st.k : st.k, L.spine);
+    }
+    pageEls.current.forEach((el, i) => {
+      if (!el) return;
+      const x = visible.get(i);
+      el.style.transform = x === undefined ? `translate(-100000px,0) scale(${L.k})` : `translate(${x}px,${L.top}px) scale(${L.k})`;
+      el.style.visibility = x === undefined ? 'hidden' : 'visible';
+      el.inert = x === undefined;
+      el.setAttribute('aria-hidden', String(x === undefined));
+    });
+  }, []);
+
   const relayout = useCallback(() => {
     const el = stage.current, cv = canvas.current, st = S.current;
     if (!el || !cv) return;
     const w = el.clientWidth, h = el.clientHeight, dpr = Math.min(window.devicePixelRatio || 1, 2);
     const spread = w >= 760;
     // Margen vertical para que la hoja, al levantarse, no se corte.
-    const k = spread ? Math.min((h - 120) / (PH + 2 * BOARD), (w - 64) / (2 * PW + 2 * BOARD)) : Math.min((h - 90) / (PH + 2 * BOARD), (w - 24) / (PW + BOARD + 6));
+    const k = spread ? Math.min((h - 120) / (PH + 2 * BOARD), (w - 64) / (2 * PW + 2 * BOARD)) : Math.min((h - 24) / (PH + 2 * BOARD), (w - 14) / (PW + BOARD + 6));
     const W = PW * k, H = PH * k;
     const wasSpread = st.layout?.spread;
     st.layout = { w, h, k, spread, W, H, dpr, spine: spread ? w / 2 : (w - W) / 2, top: (h - H) / 2 };
@@ -340,10 +393,11 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
     setSingle(!spread);
     cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
     st.cache.clear(); fullCache.current.clear();
-    pageEls.current.forEach(p => { if (p) p.style.transform = `translate(-100000px,0) scale(${k})`; });
+    // Al cambiar el tamaño, la página quieta vuelve a su sitio (antes quedaba escondida y se veía en blanco).
+    placePages();
     PAGES.forEach((_, i) => measureArt(i));
     loop();
-  }, [loop, measureArt]);
+  }, [loop, measureArt, placePages]);
 
   useEffect(() => {
     const el = stage.current;
@@ -354,26 +408,7 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
     return () => { ro.disconnect(); cancelAnimationFrame(st.raf); };
   }, [relayout]);
 
-  // Páginas HTML: visibles solo si están quietas en la doble página actual.
-  useLayoutEffect(() => {
-    const L = S.current.layout;
-    if (!L) return;
-    const visible = new Map<number, number>();
-    if (mode === 'open' && !turning) {
-      const l = leftOf(spread), r = rightOf(spread);
-      if (typeof l === 'number') visible.set(l, L.spine - L.W);
-      if (typeof r === 'number') visible.set(r, L.spine);
-    }
-    pageEls.current.forEach((el, i) => {
-      if (!el) return;
-      const x = visible.get(i);
-      el.style.transform = x === undefined ? `translate(-100000px,0) scale(${L.k})` : `translate(${x}px,${L.top}px) scale(${L.k})`;
-      el.style.visibility = x === undefined ? 'hidden' : 'visible';
-      el.inert = x === undefined;
-      el.setAttribute('aria-hidden', String(x === undefined));
-    });
-    loop();
-  }, [spread, mode, turning, single, loop]);
+  useLayoutEffect(() => { placePages(); loop(); }, [spread, mode, turning, single, placePages, loop]);
 
   useEffect(() => {
     const d = dialog.current;
@@ -387,27 +422,47 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
   useEffect(() => open && mode === 'closed' ? tiltTowardCursor(tilt.current, 12, 8, 700, tilt.current, { ry: 0, rx: 0 }) : undefined, [open, mode]);
 
   // ---------- Acciones ----------
-  /** Cerrar: desde la última página las hojas vuelven al inicio y después baja la tapa. */
-  function startClosing() {
+  const animateCover = (to: number) => {
     const st = S.current;
-    st.mode = 'closing'; st.openStart = performance.now(); setMode('closing');
+    st.coverAnim = { from: st.openT, to, t0: performance.now(), dur: Math.max(260, 1400 * Math.abs(to - st.openT)) };
+    if (st.mode !== 'moving') { st.mode = 'moving'; setMode('moving'); }
     sound.get()?.bookOpen();
     loop();
-  }
+  };
+  /** Cerrado por detrás, el libro se da vuelta solo para mostrar la portada. */
+  useEffect(() => {
+    const st = S.current, cv = canvas.current;
+    if (mode !== 'closed' || st.fold.dir !== 'back' || !cv) return;
+    const face = () => { st.fold = FRONT; st.k = 0; setSpread(0); loop(); };
+    const spin = (a: string, b: string, easing: string) => cv.animate([{ transform: `perspective(1400px) rotateY(${a})` }, { transform: `perspective(1400px) rotateY(${b})` }], { duration: 240, easing, fill: 'forwards' });
+    const id = setTimeout(() => {
+      if (st.reduce) { face(); return; }
+      sound.get()?.pageTurn(0, .9);
+      const out = spin('0deg', '90deg', 'ease-in');
+      out.onfinish = () => { face(); spin('-90deg', '0deg', 'ease-out').onfinish = e => { out.cancel(); (e.target as Animation).cancel(); }; };
+    }, 380);
+    return () => clearTimeout(id);
+  }, [mode, loop, sound]);
+  const openBook = () => {
+    const st = S.current;
+    if (st.mode !== 'closed' || st.coverAnim) return;
+    st.fold = FRONT; st.k = 0; fullCache.current.clear();
+    animateCover(1);
+  };
+  /** Cerrar desde la primera página (la tapa vuelve) o desde la última (se cierra la contratapa). */
   const closeBook = () => {
     const st = S.current;
     if (st.mode !== 'open' || st.turn) return;
-    if (st.k === 0) { startClosing(); return; }
-    st.closeAfterTurn = true;
-    go(0);
-    if (st.reduce) { st.closeAfterTurn = false; startClosing(); }
+    if (!foldAt(st.k)) return;
+    animateCover(0);
   };
-  const openBook = () => {
-    const st = S.current;
-    if (st.mode !== 'closed') return;
-    st.mode = 'opening'; st.openStart = performance.now(); setMode('opening');
-    sound.get()?.bookOpen();
-    loop();
+  const foldAt = (k: number) => {
+    const st = S.current, L = st.layout!;
+    fullCache.current.clear();
+    if (k === 0) st.fold = FRONT;
+    else if (k === count() - 1) st.fold = { dir: 'back', k, under: L.spread ? 2 * k - 1 : k - 1, inside: L.spread ? 2 * k : k };
+    else return false;
+    return true;
   };
 
   const startTurn = (pages: TurnState['pages'], atC: number, atC2: number, from: 'C' | 'C2', cornerY: number): TurnState => {
@@ -448,7 +503,14 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
   const onPointerDown = (e: React.PointerEvent) => {
     const st = S.current, L = st.layout;
     if (!L) return;
-    if (st.mode === 'closed') { openBook(); return; }
+    if (st.coverAnim || st.coverDrag) return;
+    const grab = (startT: number) => {
+      st.coverDrag = { startX: e.clientX, startT, moved: false, lastX: e.clientX, lastT: performance.now(), vx: 0, sounded: false };
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      e.preventDefault();
+    };
+    // Cerrado: la tapa se abre arrastrándola hacia la izquierda (o con un toque).
+    if (st.mode === 'closed') { if (st.fold.dir === 'front') { fullCache.current.clear(); grab(0); } return; }
     if (st.mode !== 'open' || st.turn || (e.target as HTMLElement).closest('a, button, textarea, input')) return;
     const p = local(e), W = L.W, H = L.H;
     if (p.y < -20 || p.y > H + 20) return;
@@ -456,6 +518,13 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
     let turn: TurnState | null = null, start: V;
     const forward = L.spread ? p.x > W * .78 && p.x < W + 30 : p.x > W * .78;
     const backward = L.spread ? p.x < -W * .78 && p.x > -W - 30 : p.x < W * .22;
+    // En la primera o la última página, el mismo gesto que pasa una hoja cierra el libro.
+    if ((backward && st.k === 0) || (forward && st.k === count() - 1)) {
+      foldAt(st.k);
+      st.openT = 1; st.mode = 'moving'; setMode('moving');
+      grab(1); loop();
+      return;
+    }
     if (forward && st.k < count() - 1) {
       turn = startTurn({ l0: leftOf(st.k), r0: rightOf(st.k), r1: rightOf(st.k + 1), l1: L.spread ? leftOf(st.k + 1) : 'back' }, st.k, st.k + 1, 'C', cornerY);
       start = turn.C;
@@ -470,7 +539,21 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
     loop();
   };
   const onPointerMove = (e: React.PointerEvent) => {
-    const st = S.current, turn = st.turn, L = st.layout;
+    const st = S.current, turn = st.turn, L = st.layout, cd = st.coverDrag;
+    if (cd && L) {
+      const dx = e.clientX - cd.startX, now = performance.now();
+      // La tapa delantera se cierra hacia la derecha; la trasera, hacia la izquierda.
+      const toward = st.fold.dir === 'front' ? 1 : -1;
+      if (Math.abs(dx) > 4 && !cd.moved) {
+        cd.moved = true;
+        if (st.mode === 'closed') { st.mode = 'moving'; setMode('moving'); }
+      }
+      if (cd.moved && !cd.sounded) { cd.sounded = true; sound.get()?.pageTurn(0, .9); }
+      cd.vx = (e.clientX - cd.lastX) / Math.max(1, now - cd.lastT); cd.lastX = e.clientX; cd.lastT = now;
+      st.openT = clamp(cd.startT - toward * dx / (L.W * 1.25));
+      loop();
+      return;
+    }
     if (!turn?.drag || !L) return;
     const p = local(e);
     const d = turn.drag, now = performance.now();
@@ -482,7 +565,14 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
     loop();
   };
   const onPointerUp = () => {
-    const st = S.current, turn = st.turn, L = st.layout;
+    const st = S.current, turn = st.turn, L = st.layout, cd = st.coverDrag;
+    if (cd) {
+      st.coverDrag = null;
+      const closing = (st.fold.dir === 'front' ? 1 : -1) * cd.vx;
+      const to = !cd.moved ? 1 - cd.startT : closing > .3 ? 0 : closing < -.3 ? 1 : st.openT < .5 ? 0 : 1;
+      animateCover(to);
+      return;
+    }
     if (!turn?.drag || !L) return;
     const d = turn.drag;
     turn.drag = null;
@@ -498,8 +588,9 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!open || (e.target as HTMLElement).closest('textarea')) return;
-      if (e.key === 'ArrowRight') { e.preventDefault(); if (S.current.mode === 'closed') openBook(); else go(S.current.k + 1); }
-      if (e.key === 'ArrowLeft') { e.preventDefault(); if (S.current.k === 0) closeBook(); else go(S.current.k - 1); }
+      const st = S.current, last = st.k === count() - 1;
+      if (e.key === 'ArrowRight') { e.preventDefault(); if (st.mode === 'closed') openBook(); else if (last) closeBook(); else go(st.k + 1); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); if (st.k === 0) closeBook(); else go(st.k - 1); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -630,12 +721,16 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
     </div>
 
     <footer className="book3d-foot">
-      {spread === 0 ? <button onClick={closeBook} disabled={mode !== 'open'}>← Cerrar el libro</button> : <button onClick={() => go(S.current.k - 1)} disabled={mode !== 'open'}>← Anterior</button>}
+      <button onClick={() => go(S.current.k - 1)} disabled={mode !== 'open' || spread === 0} aria-label="Página anterior"><span aria-hidden="true">←</span><span className="bk-btn-text"> Anterior</span></button>
       <button onClick={() => go(spreadOfPage(1))} disabled={mode !== 'open'}>Índice</button>
-      <span aria-live="polite">{mode === 'open' ? label : 'Libro cerrado'}</span>
+      <span className="bk-count" aria-live="polite"><span className="bk-long">{mode === 'open' ? label : mode === 'closed' ? 'Libro cerrado' : '\u00a0'}</span>
+        <span className="bk-short" aria-hidden="true">{mode === 'open' ? `${shown[shown.length - 1] + 1} / ${PAGES.length}` : mode === 'closed' ? 'Cerrado' : '\u00a0'}</span></span>
       <button onClick={() => go(spreadOfPage(NOTES))} disabled={mode !== 'open'}>Tus notas</button>
-      {spread >= total - 1 ? <button onClick={closeBook} disabled={mode !== 'open'}>Cerrar el libro →</button> : <button onClick={() => go(S.current.k + 1)} disabled={mode !== 'open'}>Siguiente →</button>}
-      <p className="book3d-hint">{mode === 'open' ? 'Arrastra la esquina de la hoja, tócala o usa las flechas del teclado.' : 'Toca la portada para abrir.'}</p>
+      <button onClick={() => go(S.current.k + 1)} disabled={mode !== 'open' || spread >= total - 1} aria-label="Página siguiente"><span className="bk-btn-text">Siguiente </span><span aria-hidden="true">→</span></button>
+      <p className="book3d-hint">{mode === 'closed'
+        ? 'Toca la portada o arrastra la tapa hacia la izquierda.'
+        : <><span className="bk-long">Arrastra la esquina de la hoja para pasarla, o usa las flechas del teclado. En la primera o la última página, el mismo gesto cierra el libro.</span>
+          <span className="bk-short">Arrastra la esquina para pasar la hoja o cerrar el libro.</span></>}</p>
     </footer>
   </dialog>;
 }
