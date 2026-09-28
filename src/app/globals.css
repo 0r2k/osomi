@@ -6,3 +6,5 @@
 .favorite button .favorite-label{font-size:inherit;line-height:inherit}
 /* Con un modal abierto, la página de fondo no se desplaza. */
 html:has(dialog[open]){overflow:hidden}
+
+.legal{max-width:760px;padding-top:50px}.legal h1{font-size:clamp(36px,6vw,56px);margin:22px 0 10px}.legal-date{font-size:13px;color:#586250;margin:0 0 32px}.legal h2{font-family:Georgia,serif;font-size:24px;font-weight:400;margin:44px 0 12px}.legal h3{font-size:15px;font-weight:600;margin:24px 0 8px}.legal p,.legal li{line-height:1.75;font-size:16px}.legal ul{padding-left:22px;display:grid;gap:8px}.legal code{font-size:13px;background:#e8e4da;padding:1px 6px;border-radius:3px}.legal footer{margin-top:72px;padding-top:24px;border-top:1px solid #bcbfb5}

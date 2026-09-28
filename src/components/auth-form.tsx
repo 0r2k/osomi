@@ -19,6 +19,6 @@ export function AuthForm({mode,notice}:{mode:AuthMode;notice?:string}){
  {error&&<p className="error" role="alert">{error}</p>}{message&&<p className="notice" role="status">{message}</p>}
  <button className="primary-button" type="submit" disabled={busy}>{busy?'Un momento…':text.button}</button>
  </form>
- <div className="auth-links">{mode==='login'?<><Link href="/recuperar">Olvidé mi contraseña</Link><span>¿Primera vez? <Link href="/registro">Crea tu cuenta</Link></span></>:<Link href="/acceso">Ya tengo cuenta. Ingresar</Link>}</div>
- <p className="quiet"><Link href="/">Volver a explorar</Link></p></section>;
+ <div className="auth-links">{mode==='signup'&&<span>Al crear tu cuenta aceptas los <Link href="/terminos">Términos de servicio</Link> y la <Link href="/privacidad">Política de privacidad</Link>.</span>}{mode==='login'?<><Link href="/recuperar">Olvidé mi contraseña</Link><span>¿Primera vez? <Link href="/registro">Crea tu cuenta</Link></span></>:<Link href="/acceso">Ya tengo cuenta. Ingresar</Link>}</div>
+ <p className="quiet"><Link href="/">Volver a explorar</Link> · <Link href="/privacidad">Privacidad</Link> · <Link href="/terminos">Términos</Link></p></section>;
 }

@@ -17,7 +17,7 @@ export default function Home() {
       <p><Link href="/prototipo/descanso">Comenzar la experiencia →</Link></p>
       <p><Link href="/prototipo/p08">Explorar día, año y semana →</Link></p>
       <p><Link href="/registro">Crear mi cuenta →</Link></p>
-      <footer>Vista de desarrollo · Piloto en construcción</footer>
+      <footer>Vista de desarrollo · Piloto en construcción · <Link href="/privacidad">Privacidad</Link> · <Link href="/terminos">Términos</Link></footer>
     </main>
     <Favorite fixed/>
     </>
