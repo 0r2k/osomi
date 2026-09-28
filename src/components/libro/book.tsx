@@ -48,12 +48,12 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
   const tilt = useRef<HTMLDivElement>(null);
   const pageEls = useRef<(HTMLElement | null)[]>([]);
   const sound = useSound();
-  const [mode, setMode] = useState<'closed' | 'opening' | 'open'>('closed');
+  const [mode, setMode] = useState<'closed' | 'opening' | 'open' | 'closing'>('closed');
   const [spread, setSpread] = useState(0);
   const [turning, setTurning] = useState(false);
   const [single, setSingle] = useState(false);
   const S = useRef({
-    mode: 'closed' as 'closed' | 'opening' | 'open', openT: 0, openStart: 0, k: 0,
+    mode: 'closed' as 'closed' | 'opening' | 'open' | 'closing', openT: 0, openStart: 0, k: 0, closeAfterTurn: false,
     turn: null as TurnState | null, layout: null as Layout | null, reduce: false,
     art: new Map<number, number>(), artBoxes: new Map<number, { x: number; y: number; w: number; h: number }>(),
     cache: new Map<string, HTMLCanvasElement>(), raf: 0, hinted: false,
@@ -137,6 +137,12 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
         st.openT = st.reduce ? 1 : clamp((now - st.openStart) / 1500);
         animating = st.openT < 1;
       }
+      // Cerrar es la apertura al revés.
+      if (st.mode === 'closing') {
+        st.openT = st.reduce ? 0 : 1 - clamp((now - st.openStart) / 1300);
+        animating = st.openT > 0;
+        if (st.openT <= 0) { st.mode = 'closed'; setMode('closed'); }
+      }
       const t = st.openT, e = ease(t), theta = Math.PI * ease(clamp((t - .12) / .88));
       const closedSpine = L.spread ? L.w / 2 - W / 2 : L.spine;
       const spine = lerp(closedSpine, L.spine, e);
@@ -182,7 +188,7 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
       if (facing([W, 0, 0], [0, 0, T], [0, H, 0])) plane(edge, [W, 0, 0], [0, 0, T], [0, H, 0]);
       if (facing([0, 0, 0], [W, 0, 0], [0, 0, T])) quad([0, 0, 0], [W, 0, 0], [0, 0, T], '#ece2cc');
       // Primera página bajo la tapa.
-      const first = texture(`first:${L.k}:${L.dpr}`, () => full(rightOf(0))!);
+      const first = texture(`first:${L.k}:${L.dpr}:${(st.art.get(0) ?? 0) >= 1}`, () => full(rightOf(0))!);
       plane(first, [0, 0, 0], [W, 0, 0], [0, H, 0]);
       if (theta < Math.PI / 2) {
         const pts = ([[0, 0, 0], [W, 0, 0], [W, H, 0], [0, H, 0]] as P3[]).map(p => project(...p));
@@ -252,6 +258,7 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
           const endK = Math.abs(a.to.x - turn.C.x) < 1 ? turn.atC : turn.atC2;
           st.turn = null; st.k = endK; st.hinted = true;
           setSpread(endK); setTurning(false);
+          if (st.closeAfterTurn && endK === 0) { st.closeAfterTurn = false; startClosing(); }
           g.restore();
           return true;   // el siguiente fotograma dibuja la doble página quieta
         }
@@ -377,9 +384,24 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
   }, [open, relayout]);
 
   // El libro se inclina levemente hacia el cursor (se endereza mientras gira una hoja).
-  useEffect(() => open ? tiltTowardCursor(tilt.current, 7, 5, 700, tilt.current, { ry: 0, rx: 0 }) : undefined, [open]);
+  useEffect(() => open && mode === 'closed' ? tiltTowardCursor(tilt.current, 12, 8, 700, tilt.current, { ry: 0, rx: 0 }) : undefined, [open, mode]);
 
   // ---------- Acciones ----------
+  /** Cerrar: desde la última página las hojas vuelven al inicio y después baja la tapa. */
+  function startClosing() {
+    const st = S.current;
+    st.mode = 'closing'; st.openStart = performance.now(); setMode('closing');
+    sound.get()?.bookOpen();
+    loop();
+  }
+  const closeBook = () => {
+    const st = S.current;
+    if (st.mode !== 'open' || st.turn) return;
+    if (st.k === 0) { startClosing(); return; }
+    st.closeAfterTurn = true;
+    go(0);
+    if (st.reduce) { st.closeAfterTurn = false; startClosing(); }
+  };
   const openBook = () => {
     const st = S.current;
     if (st.mode !== 'closed') return;
@@ -477,7 +499,7 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
     const onKey = (e: KeyboardEvent) => {
       if (!open || (e.target as HTMLElement).closest('textarea')) return;
       if (e.key === 'ArrowRight') { e.preventDefault(); if (S.current.mode === 'closed') openBook(); else go(S.current.k + 1); }
-      if (e.key === 'ArrowLeft') { e.preventDefault(); go(S.current.k - 1); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); if (S.current.k === 0) closeBook(); else go(S.current.k - 1); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -498,8 +520,8 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
     </header>
 
     <div ref={stage} className="book3d-stage" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
-      <div ref={tilt} className="book3d-tilt" data-still={turning}>
-      <canvas ref={canvas} aria-hidden="true" />
+      {/* Solo el canvas se inclina, y solo con el libro cerrado: las páginas HTML quedan fuera de la perspectiva. */}
+      <div ref={tilt} className="book3d-tilt" data-still={mode !== 'closed'}><canvas ref={canvas} aria-hidden="true" /></div>
       <div className="book3d-pages">
         <section ref={el => setPage(el, 0)} className="bk-page bk-title-page">
           <p className="bk-eyebrow">Osomi · Mira más de cerca</p>
@@ -604,16 +626,15 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
           {folio(12)}
         </section>
       </div>
-      </div>
       {mode === 'closed' && <button className="book3d-open" onClick={openBook} autoFocus>Abrir el libro</button>}
     </div>
 
     <footer className="book3d-foot">
-      <button onClick={() => go(S.current.k - 1)} disabled={mode !== 'open' || spread === 0}>← Anterior</button>
+      {spread === 0 ? <button onClick={closeBook} disabled={mode !== 'open'}>← Cerrar el libro</button> : <button onClick={() => go(S.current.k - 1)} disabled={mode !== 'open'}>← Anterior</button>}
       <button onClick={() => go(spreadOfPage(1))} disabled={mode !== 'open'}>Índice</button>
       <span aria-live="polite">{mode === 'open' ? label : 'Libro cerrado'}</span>
       <button onClick={() => go(spreadOfPage(NOTES))} disabled={mode !== 'open'}>Tus notas</button>
-      <button onClick={() => go(S.current.k + 1)} disabled={mode !== 'open' || spread >= total - 1}>Siguiente →</button>
+      {spread >= total - 1 ? <button onClick={closeBook} disabled={mode !== 'open'}>Cerrar el libro →</button> : <button onClick={() => go(S.current.k + 1)} disabled={mode !== 'open'}>Siguiente →</button>}
       <p className="book3d-hint">{mode === 'open' ? 'Arrastra la esquina de la hoja, tócala o usa las flechas del teclado.' : 'Toca la portada para abrir.'}</p>
     </footer>
   </dialog>;
