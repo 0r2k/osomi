@@ -14,7 +14,8 @@ import './book.css';
 // HTML real (seleccionable y accesible); mientras gira, su texto se pinta en el canvas.
 
 const PW = 420, PH = 600, BOARD = 8;
-type Surface = number | 'endpaper' | 'back' | null;
+// `ghost-N`: reverso de la página N en móvil, con su tinta tenue y en espejo, como papel a contraluz.
+type Surface = number | 'endpaper' | 'back' | `ghost-${number}` | null;
 type Layout = { w: number; h: number; k: number; spread: boolean; spine: number; top: number; W: number; H: number; dpr: number };
 type TurnState = {
   pages: { l0: Surface; r0: Surface; r1: Surface; l1: Surface };
@@ -80,21 +81,33 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
     S.current.artBoxes.set(i, { x: (b.left - a.left) / L.k, y: (b.top - a.top) / L.k, w: b.width / L.k, h: b.height / L.k });
   }, []);
   /** Hoja completa (papel + ilustración + texto) para cuando gira. */
-  const full = useCallback((s: Surface) => {
+  const sheet = useCallback((i: number) => {
     const L = S.current.layout!;
-    if (s === null) return null;
-    if (typeof s !== 'number') return base(s);
     const c = document.createElement('canvas');
     c.width = Math.round(PW * L.k * L.dpr); c.height = Math.round(PH * L.k * L.dpr);
     const g = c.getContext('2d')!;
-    g.drawImage(base(s), 0, 0);
+    g.drawImage(base(i), 0, 0);
     g.scale(L.k * L.dpr, L.k * L.dpr);
-    const art = PAGES[s].art, box = S.current.artBoxes.get(s);
-    if (art && box) drawArt(g, art, box, S.current.art.get(s) ?? 0);
-    const el = pageEls.current[s];
+    const art = PAGES[i].art, box = S.current.artBoxes.get(i);
+    if (art && box) drawArt(g, art, box, S.current.art.get(i) ?? 0);
+    const el = pageEls.current[i];
     if (el) rasterizeText(el, g, L.k);
     return c;
   }, [base]);
+  const full = useCallback((s: Surface) => {
+    if (s === null) return null;
+    if (typeof s === 'number') return sheet(s);
+    if (s.startsWith('ghost-')) {
+      const front = sheet(Number(s.slice(6)));
+      const back = base('back'), c = document.createElement('canvas');
+      c.width = back.width; c.height = back.height;
+      const g = c.getContext('2d')!;
+      g.drawImage(back, 0, 0);
+      g.globalAlpha = .12; g.translate(c.width, 0); g.scale(-1, 1); g.drawImage(front, 0, 0);
+      return c;
+    }
+    return base(s);
+  }, [base, sheet]);
 
   // Hojas completas: se generan al empezar cada giro (el texto de las notas puede cambiar).
   const fullCache = useRef(new Map<Surface, HTMLCanvasElement | null>());
@@ -372,6 +385,7 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
     const L = S.current.layout!;
     fullCache.current.clear();
     const C = { x: L.W, y: cornerY }, C2 = { x: -L.W, y: cornerY };
+    if (!L.spread && typeof pages.r0 === 'number') pages = { ...pages, l1: `ghost-${pages.r0}` };
     const turn: TurnState = { pages, C, P: from === 'C' ? C : C2, atC, atC2, drag: null, anim: null };
     S.current.turn = turn; setTurning(true);
     return turn;
