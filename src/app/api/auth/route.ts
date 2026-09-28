@@ -6,7 +6,7 @@ export async function POST(request:Request){
  try{
   const body=await input(request);const action=body.action;const client=await createClient();
   if(typeof action!=='string'||!['signup','login','recover','google','signout','password','reconcile'].includes(action))throw new ApiError(400,'Acción no válida.');
-  rateLimit(request,'auth:'+action,action==='recover'||action==='signup'?5:20,action==='recover'||action==='signup'?900000:60000);
+  await rateLimit(request,'auth:'+action,action==='recover'||action==='signup'?5:20,action==='recover'||action==='signup'?900000:60000);
   if(action==='google'){
    const {data,error}=await client.auth.signInWithOAuth({provider:'google',options:{redirectTo:siteOrigin+'/auth/callback',queryParams:{prompt:'select_account'}}});
    if(error||!data.url)throw new ApiError(503,'No pudimos abrir Google. Inténtalo de nuevo.');return json({url:data.url});
