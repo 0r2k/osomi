@@ -6,7 +6,8 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useSound } from '../descanso/sound';
 import './closing.css';
-import { PASSAGES, QUESTIONS, SOURCES, type SourceKey } from './content';
+import { PASSAGES, QUESTIONS, SOURCES, TRANSLATION, type SourceKey } from './content';
+import { coverCanvas } from '../libro/paper';
 import { Book3D } from '../libro/book';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -34,8 +35,25 @@ function Bust() {
   </svg>;
 }
 
-export function Closing({ biblical, pausa, intencion, onExploreBible }: { biblical: boolean; pausa: string | null; intencion: string | null; onExploreBible?: () => void }) {
-  const questions = QUESTIONS.filter(q => !q.biblical || biblical);
+/** La portada del libro, pintada con el mismo código del libro 3D. */
+function BookCover({ onOpen }: { onOpen: (button: HTMLButtonElement) => void }) {
+  const canvas = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const c = canvas.current;
+    if (!c) return;
+    const cover = coverCanvas(428, 616, 1.5);
+    c.width = cover.width; c.height = cover.height;
+    c.getContext('2d')!.drawImage(cover, 0, 0);
+  }, []);
+  return <button className="book-cover" onClick={event => onOpen(event.currentTarget)} aria-label="Abrir el libro del tema">
+    <canvas ref={canvas} width={642} height={924} aria-hidden="true" />
+    <span className="book-cover-pages" aria-hidden="true" />
+    <span className="book-cover-ribbon" aria-hidden="true" />
+  </button>;
+}
+
+export function Closing({ biblical, pausa, intencion }: { biblical: boolean; pausa: string | null; intencion: string | null }) {
+  const questions = QUESTIONS;
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, { first: number; current: number }>>({});
   const [reviewing, setReviewing] = useState(false);
@@ -96,12 +114,14 @@ export function Closing({ biblical, pausa, intencion, onExploreBible }: { biblic
     ['Resumen', <>
       <p>Empezaste con una pregunta cotidiana: <em>¿por qué necesito descansar?</em> Observaste cómo se acumulan las demandas y probaste una tarea con y sin interrupciones.</p>
       <p>Viste que dormir participa en procesos que sostienen la salud, el aprendizaje y la memoria, y que el cuerpo sigue ritmos cercanos a 24 horas. Luego miraste cómo medimos el tiempo: el día y el año se relacionan con movimientos de la Tierra; la semana es un ritmo de calendario con historia.</p>
-      {biblical ? <p>Exploraste también la perspectiva bíblica: un séptimo día apartado para el descanso, la adoración y el servicio, tal como lo entienden los adventistas.</p> : <p>La perspectiva bíblica sigue disponible cuando quieras explorarla.</p>}
+      {biblical ? <p>Exploraste también la perspectiva bíblica: un séptimo día apartado para el descanso, la adoración y el servicio.</p> : <p>La perspectiva bíblica sigue disponible cuando quieras explorarla.</p>}
     </>],
     ['Lo que descubriste', <ul key="learned" className="book-list">{questions.map(item => <li key={item.id}>{item.takeaway}{item.source && <> <a href={SOURCES[item.source].href} target="_blank" rel="noreferrer">Fuente ↗</a></>}</li>)}</ul>],
     ['Pasajes bíblicos', <>
-      <ul className="book-list">{PASSAGES.map(([ref, text]) => <li key={ref}><strong>{ref}.</strong> {text}</li>)}</ul>
-      <p className="book-note">Resúmenes editoriales, no citas literales. La traducción bíblica de referencia está pendiente de revisión.</p>
+      {PASSAGES.map(passage => <div key={passage.reference} className="book-passage"><h4>{passage.reference}</h4>
+        <blockquote>{passage.verses.map(([n, text]) => <span key={n}><sup>{n}</sup> {text} </span>)}</blockquote>
+        <p>{passage.context}</p></div>)}
+      <p className="book-note">{TRANSLATION}, dominio público; ortografía actualizada.</p>
     </>],
     ['Fuentes', <ul key="sources" className="book-list">{(Object.keys(SOURCES) as SourceKey[]).map(key => <li key={key}><a href={SOURCES[key].href} target="_blank" rel="noreferrer">{SOURCES[key].label} ↗</a><br /><span className="book-note">{SOURCES[key].scope}</span></li>)}</ul>],
     ['Para reflexionar', <ul key="reflect" className="book-list">
@@ -122,21 +142,22 @@ export function Closing({ biblical, pausa, intencion, onExploreBible }: { biblic
     <div className="closing-quiz">
       <p className="eyebrow">LO QUE DESCUBRISTE</p>
       <h2>Comprueba lo que te llevas.</h2>
-      <p className="closing-lead">Sin reloj ni nota. Puedes responder, cambiar tu respuesta o seguir adelante.</p>
+      <p className="closing-lead">Puedes responder, cambiar tu respuesta o seguir adelante.</p>
       <ol className="quiz-tabs" aria-label="Preguntas">{questions.map((item, i) =>
         <li key={item.id} data-state={answers[item.id] ? 'done' : i === index && !finished ? 'current' : ''}><button onClick={() => { setIndex(i); setFinished(false); setReviewing(false); }} aria-label={`Pregunta ${i + 1}${answers[item.id] ? ', respondida' : ''}`} aria-current={i === index && !finished ? 'step' : undefined}><span>{i + 1}</span></button></li>)}
       </ol>
 
       {!finished ? <div ref={card} className="quiz-card" key={q.id}>
-        <p className="quiz-count">{index + 1} / {questions.length}{q.biblical && ' · perspectiva bíblica'}</p>
+        <p className="quiz-count">{index + 1} / {questions.length}{q.id === 'sabado' && ' · perspectiva bíblica'}</p>
         <h3>{q.ask}</h3>
         <div className="quiz-options" role="group" aria-label="Opciones">{q.options.map((option, i) => {
-          const state = showFeedback ? (i === q.answer ? 'right' : i === chosen ? 'chosen' : '') : '';
+          const state = showFeedback ? (q.answer.includes(i) && i === chosen ? 'right' : i === chosen ? 'chosen' : q.answer.includes(i) && !q.answer.includes(chosen) ? 'right' : '') : '';
           return <button key={option} aria-pressed={given?.current === i} data-state={state} disabled={showFeedback} onClick={() => answer(i)}>{option}</button>;
         })}</div>
-        <div aria-live="polite">{showFeedback && <div className="quiz-feedback" data-right={chosen === q.answer}>
-          <strong>{chosen === q.answer ? 'Así es.' : 'No exactamente.'}</strong> {q.feedback}
+        <div aria-live="polite">{showFeedback && <div className="quiz-feedback" data-right={q.answer.includes(chosen)}>
+          <strong>{q.answer.includes(chosen) ? 'Así es.' : 'No exactamente.'}</strong> {q.feedback}
           {q.source && <a href={SOURCES[q.source].href} target="_blank" rel="noreferrer">{SOURCES[q.source].label} ↗</a>}
+          {q.refs && <span className="quiz-refs">{q.refs}</span>}
         </div>}</div>
         <div className="quiz-actions">
           {showFeedback && <button onClick={() => setReviewing(true)}>Cambiar respuesta</button>}
@@ -147,7 +168,6 @@ export function Closing({ biblical, pausa, intencion, onExploreBible }: { biblic
         <h3>Te llevas estas ideas</h3>
         <ul>{questions.map(item => <li key={item.id}>{item.takeaway}</li>)}</ul>
         <p className="closing-note">Este resumen describe el contenido que exploraste, no tu fe ni tu capacidad.</p>
-        {!biblical && onExploreBible && <button className="closing-link" onClick={onExploreBible}>Explorar también la perspectiva bíblica</button>}
       </div>}
 
       <div className="closing-reflect">
@@ -171,6 +191,21 @@ export function Closing({ biblical, pausa, intencion, onExploreBible }: { biblic
           : intencionText ? <>Pensaste en reservar tiempo para {intencionText}. ¿Qué pequeño espacio podrías darle esta semana?</>
             : <>Medimos el paso del tiempo. También podemos darle un sentido.</>}</p>
 
+      <article className="path-book">
+        <BookCover onOpen={button => { book3dOpener.current = button; setBook3d(true); }} />
+        <div className="path-book-text">
+          <p className="eyebrow">EXPLORARLO POR MI CUENTA</p>
+          <h3>Llévate el cuaderno de este tema</h3>
+          <p>Un libro para leer a tu ritmo, con páginas que se pasan como las de papel.</p>
+          <ul>
+            <li>Los versículos completos de cada pasaje</li>
+            <li>Lo que descubriste y las fuentes</li>
+            <li>Preguntas para pensar y un espacio para tus notas</li>
+          </ul>
+          <button className="path-action" onClick={event => { book3dOpener.current = event.currentTarget; setBook3d(true); }}>Abrir el libro</button>
+        </div>
+      </article>
+
       <div className="paths">
         <article className="path">
           <p className="eyebrow">SEGUIR EXPLORANDO</p>
@@ -180,15 +215,9 @@ export function Closing({ biblical, pausa, intencion, onExploreBible }: { biblic
           <Link className="path-action" href="/registro">Crear una cuenta gratuita</Link>
         </article>
         <article className="path">
-          <p className="eyebrow">EXPLORARLO POR MI CUENTA</p>
-          <h3>El libro de este tema</h3>
-          <p>Resumen, lo que descubriste, pasajes, fuentes y preguntas para reflexionar. Puedes tomar notas.</p>
-          <button className="path-action" onClick={event => { book3dOpener.current = event.currentTarget; setBook3d(true); }}>Abrir el libro</button>
-        </article>
-        <article className="path">
           <p className="eyebrow">EXPLORARLO CON ALGUIEN</p>
           <h3>Una conversación con una persona</h3>
-          <p>Un instructor bíblico o colaborador adventista, gratuito y sin compromiso.</p>
+          <p>Un instructor capacitado sobre este y otros temas que todos nos preguntamos en la vida, gratuito y sin compromiso.</p>
           <p className="path-status">El equipo de acompañamiento está en preparación. No te pediremos datos hasta que haya personas disponibles para responder.</p>
         </article>
       </div>

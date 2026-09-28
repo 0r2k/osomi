@@ -41,3 +41,6 @@
 .bk-folio{position:absolute;left:0;right:0;bottom:22px;margin:0!important;text-align:center;font:11px 'Avenir Next','Segoe UI',sans-serif;letter-spacing:.12em;color:#a8987a}
 .book3d .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media(max-width:600px){.book3d-head{padding:10px 12px}.book3d-head h2{font-size:18px}.book3d-foot{gap:6px}.book3d-foot button{padding:8px 12px;font-size:13px}.book3d-foot>span{order:-1;width:100%}}
+.bk-verses{margin:4px 0 12px;padding:0 0 0 14px;border-left:2px solid #c9a86a;font:13.8px/1.55 Georgia,serif;color:#2d2a24}
+.bk-verses sup{font:600 9px 'Avenir Next','Segoe UI',sans-serif;color:#8a6d3b}
+.bk-comment{font:13px/1.55 'Avenir Next','Segoe UI',sans-serif!important;color:#5d5546}

@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { SiteHeader } from '@/components/site-header';
 import { P08Experience } from '@/components/p08/experience';
-import { P08Reading } from '@/components/p08/reading';
 import './p08.css';
 
 export const metadata = { title: 'Día, año, semana · Osomi' };
@@ -17,7 +16,6 @@ export default function P08Page() {
         <a href="#escena">Explorar la escena <span aria-hidden="true">↓</span></a>
       </header>
       <P08Experience />
-      <P08Reading />
       <footer className="p08-outro"><p className="eyebrow">UNA PREGUNTA PARA LLEVAR CONTIGO</p><h2>Medimos el paso del tiempo.<br />¿Qué significado queremos darle?</h2><Link href="/">Volver al tema →</Link></footer>
     </main>
   </>;

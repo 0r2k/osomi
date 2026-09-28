@@ -6,7 +6,7 @@
 /* Encadenamiento sin cortes: cada escena se superpone al último fotograma de la anterior. */
 .opening-page .rhythms{margin-top:-100svh;background:transparent}
 .opening-page .p08-embedded{margin-top:-200svh;position:relative;background:transparent;opacity:0}
-.p08-embedded .p08-scroll{height:750svh}
+.p08-embedded .p08-scroll{height:900svh}
 .opening-page .p08-reading{background:#f4f1eb;max-width:none;padding-left:max(6vw,calc((100vw - 1100px) / 2));padding-right:max(6vw,calc((100vw - 1100px) / 2))}
 .p08-reading-toggle{display:block;margin:8px auto 0;padding:6px 14px!important;min-height:36px!important;font-size:11px!important}
 .p08-motion{margin-bottom:16px;padding:10px 16px;border:1px solid #809085;border-radius:30px;background:none;color:inherit}
@@ -119,3 +119,7 @@
   .sound-toggle{top:auto;right:80px;bottom:16px;width:52px;height:52px;padding:0;justify-content:center;border-radius:50%}
   .sound-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 }
+/* Velo detrás del laboratorio: las demandas quedan atrás y el panel se lee con claridad. */
+.opening-scrim{position:absolute;inset:0;z-index:1;background:radial-gradient(ellipse at 50% 45%,#10182acc,#10182ae6);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:opacity .5s ease}
+.opening-stage[data-lab=true] .opening-scrim{opacity:1}
+.opening-station[data-step=lab]{background:#faf8f3;box-shadow:0 30px 90px #0009}

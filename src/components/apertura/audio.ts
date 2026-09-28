@@ -213,6 +213,22 @@ export class OpeningAudio {
     this.pageTurn(.35, 1.3);
   }
 
+  /** Un paso: golpe grave y el roce corto de la suela. */
+  footstep(pan: number) {
+    if (!this.enabled) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(95, t); o.frequency.exponentialRampToValueAtTime(55, t + .09);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.07, t + .008); g.gain.exponentialRampToValueAtTime(.0001, t + .16);
+    const panner = this.ctx.createStereoPanner(); panner.pan.value = Math.max(-1, Math.min(1, pan));
+    o.connect(g).connect(panner).connect(this.master); o.start(t); o.stop(t + .18);
+    const src = this.ctx.createBufferSource(); src.buffer = this.noise;
+    const lp = this.ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1400;
+    const ng = this.ctx.createGain();
+    ng.gain.setValueAtTime(0, t); ng.gain.linearRampToValueAtTime(.05, t + .01); ng.gain.exponentialRampToValueAtTime(.0001, t + .09);
+    src.connect(lp).connect(ng).connect(panner); src.start(t, Math.random() * 1.5, .12);
+  }
+
   /** Campana suave: una demanda que se deja en pausa. */
   chime(pan: number, index: number, delay = 0, level = .05) {
     if (!this.enabled) return;

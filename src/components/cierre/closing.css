@@ -44,7 +44,7 @@
 .closing-choose{background:#f3e9dc;color:#1d2430;text-align:center;padding:0 24px 18svh}
 .closing-bust{display:block;width:min(180px,40vw);margin:0 auto 18px;fill:#2a3140}
 .closing-choose .closing-lead{opacity:.8}
-.paths{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;max-width:1100px;margin:0 auto;text-align:left}
+.paths{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;max-width:1100px;margin:0 auto;text-align:left}
 .path{display:flex;flex-direction:column;gap:6px;padding:26px 24px;border-radius:18px;background:#faf8f3;box-shadow:0 18px 50px #1d24301a;border-top:6px solid #b5a27b}
 .path .eyebrow{color:#7a6a48;opacity:1;margin:0}
 .path p{margin:0 0 10px;line-height:1.6;font-size:15px}
@@ -97,3 +97,25 @@
 .closing-choose::before{content:'';position:absolute;left:50%;top:-40px;width:min(520px,110vw);height:320px;transform:translateX(-50%);background:radial-gradient(closest-side,#ffd9a0cc,#ffd9a000);pointer-events:none}
 .closing-bust{position:relative;fill:#2a3140;filter:drop-shadow(0 0 1px #ffd9a0) drop-shadow(0 10px 30px #c98e6e55)}
 .closing-choose>*{position:relative}
+.quiz-refs{display:block;margin-top:8px;font-size:13px;color:#6b4d2a;letter-spacing:.02em}
+.book-passage h4{margin:16px 0 6px;font:600 12px 'Avenir Next',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#7a6a48}
+.book-passage blockquote{margin:0 0 8px;padding-left:14px;border-left:2px solid #c9a86a;font-style:normal}
+.book-passage sup{font-size:10px;color:#8a6d3b}
+
+/* El libro, protagonista del cierre: su portada real, inclinada, con cinta y hojas. */
+.path-book{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:clamp(24px,5vw,64px);max-width:1100px;margin:0 auto 22px;padding:clamp(24px,4vw,44px);border-radius:24px;text-align:left;background:linear-gradient(135deg,#1c2544 0%,#2a3560 100%);color:#f3ead9;box-shadow:0 30px 70px #1d24303d}
+.path-book .eyebrow{color:#e9c985;opacity:1;margin:0 0 8px}
+.path-book h3{font:400 clamp(26px,3vw,34px)/1.15 Georgia,serif;margin:0 0 10px;color:#fff6e4}
+.path-book p{margin:0 0 12px;line-height:1.6;opacity:.9}
+.path-book ul{margin:0 0 20px;padding:0;list-style:none;display:grid;gap:8px}
+.path-book li{padding-left:22px;position:relative;font-size:15px}
+.path-book li::before{content:'';position:absolute;left:0;top:.45em;width:9px;height:12px;border-radius:2px;background:#e9c985}
+.path-book .path-action{background:#f4c77a;border-color:#f4c77a;color:#1c2544;font-weight:600}
+.book-cover{position:relative;display:block;padding:0;border:0;background:none;cursor:pointer;perspective:900px}
+.book-cover canvas{display:block;width:clamp(150px,20vw,214px);height:auto;border-radius:3px 8px 8px 3px;transform:rotateY(-24deg) rotateX(6deg);transform-origin:left center;box-shadow:18px 22px 40px #0008;transition:transform .6s cubic-bezier(.2,.8,.2,1)}
+.book-cover:hover img,.book-cover:focus-visible img{transform:rotateY(-8deg) rotateX(2deg) translateY(-6px)}
+.book-cover-pages{position:absolute;top:3%;bottom:3%;right:-6px;width:14px;border-radius:0 4px 4px 0;background:repeating-linear-gradient(90deg,#f3ead6 0 2px,#d9ccb0 2px 3px);transform:rotateY(-24deg);transform-origin:left;z-index:-1}
+.book-cover-ribbon{position:absolute;left:18%;bottom:-18px;width:10px;height:40px;background:linear-gradient(90deg,#b98534,#f4c77a,#a8772f);clip-path:polygon(0 0,100% 0,100% 100%,50% 82%,0 100%)}
+@media(prefers-reduced-motion:no-preference){.book-cover canvas{animation:book-float 5s ease-in-out infinite}.book-cover:hover img{animation:none}}
+@keyframes book-float{0%,100%{translate:0 0}50%{translate:0 -8px}}
+@media(max-width:700px){.path-book{grid-template-columns:1fr;justify-items:center;text-align:center}.path-book ul{text-align:left}}

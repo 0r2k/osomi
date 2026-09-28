@@ -100,8 +100,11 @@ export function Rhythms({ intencion, onIntencion, onUnlock, pausa }: { intencion
       const animated = !reduce && darkness(hour) > 0;
       if (s === prev && !state.dirty && !animated) return;
       state.dirty = false;
+      const before = prev;
       prev = s;
 
+      // Pasos mientras la persona se aleja caminando.
+      if (!reduce && s > .12 && s < .98 && before >= 0 && Math.floor(s * 14 / Math.PI) !== Math.floor(before * 14 / Math.PI)) sound.get()?.footstep(-.3 - s * .5);
       drawRhythms(g, { s, now, width, height, reduce, stars, bubbles, earth, target: handoff.earth });
       sound.get()?.update(0, 1, 1 - ramp(s, R.volume[0], R.volume[1]));
 

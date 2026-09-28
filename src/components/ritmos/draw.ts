@@ -156,70 +156,155 @@ function drawLand(g: CanvasRenderingContext2D, W: number, H: number, hour: numbe
 export const bedOffset = (W: number, s: number) => (1 - smooth(ramp(s, ...R.bedIn))) * W * .75;
 
 export function bedLayout(W: number, H: number, offsetX = 0) {
-  const L = Math.min(W * (W < 600 ? .94 : .8), 640), cx = W / 2 + offsetX, base = H * .7;
-  const head = { x: cx - L * .36, y: base - L * .115 };
+  const L = Math.min(W * (W < 600 ? .94 : .8), 640), cx = W / 2 + offsetX + (W < 600 ? W * .03 : 0), base = H * .7;
+  const x0 = cx - L * .5;
+  const head = { x: x0 + L * .17, y: base - L * .17 };
   return {
-    L, cx, base, head,
-    memoria: { x: head.x + L * .06, y: base - L * .34 },
-    aprendizaje: { x: head.x - L * .07, y: base - L * .2 },
-    cuerpo: { x: cx + L * .12, y: base - L * .2 },
+    L, cx, base, head, x0,
+    memoria: { x: head.x + L * .04, y: base - L * .4 },
+    aprendizaje: { x: head.x - L * .13, y: base - L * .25 },
+    cuerpo: { x: cx + L * .1, y: base - L * .24 },
   };
 }
 
+// Ilustración plana a la luz de la luna: mesita con lámpara y reloj, cama acolchada y una persona dormida.
 function drawBed(g: CanvasRenderingContext2D, W: number, H: number, offsetX: number, alpha: number, breath: number, t: number, reduce: boolean) {
   if (alpha <= 0) return;
-  const { L, cx, base, head } = bedLayout(W, H, offsetX);
-  const x0 = cx - L * .52, x1 = cx + L * .5;
+  const { L, cx, base, head, x0 } = bedLayout(W, H, offsetX);
+  const x1 = cx + L * .5, u = L / 100;          // 1 u = 1 % del largo de la cama
+  const moon = 'rgba(214,224,255,.38)';
   g.save();
   g.globalAlpha = alpha;
-  // Luz de luna sobre el suelo.
-  const floor = g.createRadialGradient(cx, base + L * .06, 0, cx, base + L * .06, L * .7);
-  floor.addColorStop(0, 'rgba(150,170,230,.16)'); floor.addColorStop(1, 'rgba(150,170,230,0)');
-  g.fillStyle = floor; g.beginPath(); g.ellipse(cx, base + L * .06, L * .7, L * .12, 0, 0, TAU); g.fill();
-  // Cabecera, estructura y patas.
-  const wood = g.createLinearGradient(x0, base - L * .3, x0 + L * .06, base);
-  wood.addColorStop(0, '#3a2f4a'); wood.addColorStop(1, '#231c30');
-  g.fillStyle = wood; g.beginPath(); g.roundRect(x0 - L * .02, base - L * .3, L * .055, L * .36, [L * .03, L * .03, 4, 4]); g.fill();
-  g.fillStyle = '#231c30';
-  g.fillRect(x0, base + L * .005, x1 - x0, L * .035);
-  g.fillRect(x0 + L * .01, base + L * .04, L * .025, L * .03); g.fillRect(x1 - L * .035, base + L * .04, L * .025, L * .03);
-  // Colchón.
-  g.fillStyle = '#2c3658'; g.beginPath(); g.roundRect(x0 + L * .03, base - L * .055, x1 - x0 - L * .02, L * .065, L * .02); g.fill();
-  // Almohada.
-  const pillow = g.createLinearGradient(0, base - L * .13, 0, base - L * .05);
-  pillow.addColorStop(0, '#aab4d4'); pillow.addColorStop(1, '#6f7ba0');
-  g.fillStyle = pillow; g.beginPath(); g.ellipse(head.x - L * .01, base - L * .085, L * .11, L * .038, -.04, 0, TAU); g.fill();
-  // Cabeza, con cabello.
-  const r = L * .052;
-  g.fillStyle = '#1b2438'; g.beginPath(); g.arc(head.x, head.y, r, 0, TAU); g.fill();
-  g.fillStyle = '#12182a'; g.beginPath(); g.arc(head.x - r * .15, head.y - r * .1, r * 1.02, Math.PI * .75, Math.PI * 1.9); g.fill();
-  g.strokeStyle = 'rgba(255,200,150,.35)'; g.lineWidth = 1.2; g.beginPath(); g.arc(head.x, head.y, r, -Math.PI * .6, Math.PI * .2); g.stroke();
-  // Manta: la respiración levanta suavemente el torso.
-  const lift = 1 + breath * .025;
-  const blanket = g.createLinearGradient(0, base - L * .2, 0, base + L * .02);
-  blanket.addColorStop(0, '#5a6aa6'); blanket.addColorStop(1, '#2e3a6a');
+  g.lineJoin = 'round'; g.lineCap = 'round';
+
+  // Suelo iluminado por la luna.
+  const floor = g.createRadialGradient(cx, base + 8 * u, 0, cx, base + 8 * u, 75 * u);
+  floor.addColorStop(0, 'rgba(150,170,230,.18)'); floor.addColorStop(1, 'rgba(150,170,230,0)');
+  g.fillStyle = floor; g.beginPath(); g.ellipse(cx, base + 8 * u, 78 * u, 11 * u, 0, 0, TAU); g.fill();
+
+  // Mesita de noche, lámpara apagada y un reloj a medianoche.
+  const nx = x0 - 20 * u, ny = base - 11 * u;
+  g.fillStyle = '#2c2748'; g.beginPath(); g.roundRect(nx, ny, 15 * u, 19 * u, 1.2 * u); g.fill();
+  g.strokeStyle = 'rgba(214,224,255,.18)'; g.lineWidth = 1; g.beginPath(); g.moveTo(nx + 2 * u, ny + 8 * u); g.lineTo(nx + 13 * u, ny + 8 * u); g.stroke();
+  g.fillStyle = '#8f88b5'; g.beginPath(); g.arc(nx + 7.5 * u, ny + 12 * u, .8 * u, 0, TAU); g.fill();
+  g.fillStyle = '#231f3b'; g.fillRect(nx + 1.5 * u, base + 7 * u, 2 * u, 1.5 * u); g.fillRect(nx + 11.5 * u, base + 7 * u, 2 * u, 1.5 * u);
+  g.fillStyle = '#3d3860'; g.beginPath(); g.ellipse(nx + 5 * u, ny - .6 * u, 3 * u, 1 * u, 0, 0, TAU); g.fill();
+  g.fillRect(nx + 4.6 * u, ny - 9 * u, .8 * u, 8.5 * u);
+  const shade = g.createLinearGradient(0, ny - 16 * u, 0, ny - 8 * u);
+  shade.addColorStop(0, '#6f6a95'); shade.addColorStop(1, '#4b4672');
+  g.fillStyle = shade; g.beginPath(); g.moveTo(nx + 2 * u, ny - 8 * u); g.lineTo(nx + 3.4 * u, ny - 15 * u); g.lineTo(nx + 6.6 * u, ny - 15 * u); g.lineTo(nx + 8 * u, ny - 8 * u); g.closePath(); g.fill();
+  g.strokeStyle = moon; g.stroke();
+  const ck = { x: nx + 11.3 * u, y: ny - 2.4 * u, r: 2.2 * u };
+  g.fillStyle = '#d9d4ea'; g.beginPath(); g.arc(ck.x, ck.y, ck.r, 0, TAU); g.fill();
+  g.strokeStyle = '#2c2748'; g.lineWidth = Math.max(1, .35 * u);
+  g.beginPath(); g.moveTo(ck.x, ck.y); g.lineTo(ck.x, ck.y - ck.r * .7); g.moveTo(ck.x, ck.y); g.lineTo(ck.x + ck.r * .15, ck.y - ck.r * .5); g.stroke();
+
+  // Cabecera acolchada y pie de cama.
+  const hb = g.createLinearGradient(x0, base - 38 * u, x0 + 7 * u, base);
+  hb.addColorStop(0, '#4a4278'); hb.addColorStop(1, '#2f2a50');
+  g.fillStyle = hb; g.beginPath(); g.roundRect(x0 - 2 * u, base - 38 * u, 7 * u, 42 * u, [3.5 * u, 3.5 * u, .8 * u, .8 * u]); g.fill();
+  g.strokeStyle = moon; g.lineWidth = 1; g.stroke();
+  g.fillStyle = 'rgba(20,16,40,.55)';
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) { g.beginPath(); g.arc(x0 + (j ? 2.8 : .4) * u, base - (32 - i * 7 - (j ? 3.5 : 0)) * u, .6 * u, 0, TAU); g.fill(); }
+  g.fillStyle = '#2f2a50'; g.beginPath(); g.roundRect(x1 - 4 * u, base - 18 * u, 5 * u, 22 * u, [2.5 * u, 2.5 * u, .8 * u, .8 * u]); g.fill();
+  g.strokeStyle = moon; g.stroke();
+  // Estructura, patas y colchón con sábana.
+  g.fillStyle = '#2a2546'; g.fillRect(x0 + 4 * u, base - 2 * u, x1 - x0 - 7 * u, 5.5 * u);
+  g.fillStyle = '#211d3a'; g.fillRect(x0 + 5 * u, base + 3.5 * u, 2 * u, 4 * u); g.fillRect(x1 - 6 * u, base + 3.5 * u, 2 * u, 4 * u);
+  const sheet = g.createLinearGradient(0, base - 10 * u, 0, base - 2 * u);
+  sheet.addColorStop(0, '#dfe4f4'); sheet.addColorStop(1, '#aeb6d3');
+  g.fillStyle = sheet; g.beginPath(); g.roundRect(x0 + 4 * u, base - 10 * u, x1 - x0 - 8 * u, 8.5 * u, 2 * u); g.fill();
+
+  // Almohada mullida.
+  const px = x0 + 15 * u, py = base - 12.5 * u;
+  const pillow = g.createLinearGradient(0, py - 6 * u, 0, py + 5 * u);
+  pillow.addColorStop(0, '#f1f3fb'); pillow.addColorStop(1, '#bcc4df');
+  g.fillStyle = pillow;
+  g.beginPath(); g.moveTo(px - 11 * u, py + 3 * u);
+  g.bezierCurveTo(px - 13 * u, py - 5 * u, px - 4 * u, py - 7 * u, px + 2 * u, py - 5.5 * u);
+  g.bezierCurveTo(px + 9 * u, py - 6.5 * u, px + 13 * u, py - 2 * u, px + 11 * u, py + 3 * u);
+  g.bezierCurveTo(px + 6 * u, py + 5 * u, px - 6 * u, py + 5 * u, px - 11 * u, py + 3 * u);
+  g.fill(); g.strokeStyle = 'rgba(120,130,170,.35)'; g.lineWidth = 1; g.stroke();
+
+  // Cabello largo extendido sobre la almohada (detrás de la cabeza).
+  const hx = head.x, hy = head.y, hr = 6.2 * u;
+  g.fillStyle = '#2a1f2e';
+  g.beginPath(); g.moveTo(hx - 3 * u, hy - 6 * u);
+  g.bezierCurveTo(hx - 12 * u, hy - 5 * u, hx - 14 * u, hy + 3 * u, hx - 9 * u, hy + 6.5 * u);
+  g.bezierCurveTo(hx - 6 * u, hy + 8 * u, hx - 2 * u, hy + 6 * u, hx, hy + 2 * u);
+  g.closePath(); g.fill();
+
+  // Cara, inclinada sobre la almohada.
+  g.save();
+  g.translate(hx, hy); g.rotate(-.28);
+  const skin = g.createLinearGradient(-hr, -hr, hr, hr);
+  skin.addColorStop(0, '#b98567'); skin.addColorStop(1, '#935f48');
+  g.fillStyle = skin; g.beginPath(); g.ellipse(0, 0, hr * .9, hr * 1.05, 0, 0, TAU); g.fill();
+  // Oreja.
+  g.fillStyle = '#8f5b45'; g.beginPath(); g.ellipse(-hr * .82, hr * .05, hr * .16, hr * .25, 0, 0, TAU); g.fill();
+  // Cabello sobre la frente.
+  g.fillStyle = '#2a1f2e';
+  g.beginPath(); g.moveTo(-hr * .95, hr * .2);
+  g.bezierCurveTo(-hr * 1.05, -hr * .9, -hr * .1, -hr * 1.35, hr * .75, -hr * .7);
+  g.bezierCurveTo(hr * .55, -hr * .55, hr * .1, -hr * .5, -hr * .2, -hr * .38);
+  g.bezierCurveTo(-hr * .45, -hr * .25, -hr * .6, -hr * .05, -hr * .7, hr * .2);
+  g.closePath(); g.fill();
+  // Ojos cerrados, cejas, nariz, boca y mejillas.
+  const ink = '#3a2230';
+  g.strokeStyle = ink; g.lineWidth = Math.max(1.1, .32 * u);
+  g.beginPath(); g.arc(hr * .32, -hr * .02, hr * .2, .25, Math.PI - .25); g.stroke();
+  g.beginPath(); g.arc(-hr * .22, -hr * .06, hr * .15, .3, Math.PI - .3); g.stroke();
+  g.lineWidth = Math.max(.8, .2 * u);
+  for (const lx of [.2, .32, .44]) { g.beginPath(); g.moveTo(hr * lx, hr * .15); g.lineTo(hr * (lx + .02), hr * .24); g.stroke(); }
+  g.beginPath(); g.arc(hr * .33, -hr * .22, hr * .22, Math.PI * 1.15, Math.PI * 1.85); g.stroke();
+  g.beginPath(); g.arc(-hr * .2, -hr * .26, hr * .16, Math.PI * 1.2, Math.PI * 1.8); g.stroke();
+  g.beginPath(); g.moveTo(hr * .08, hr * .12); g.quadraticCurveTo(hr * .16, hr * .34, hr * .04, hr * .38); g.stroke();
+  g.beginPath(); g.arc(hr * .06, hr * .5, hr * .13, .35, Math.PI - .35); g.stroke();
+  g.fillStyle = 'rgba(230,120,120,.28)';
+  g.beginPath(); g.arc(hr * .5, hr * .3, hr * .14, 0, TAU); g.fill();
+  g.beginPath(); g.arc(-hr * .38, hr * .26, hr * .11, 0, TAU); g.fill();
+  g.restore();
+
+  // Manta: cuerpo acurrucado de lado; la respiración levanta hombro y cadera.
+  const lift = 1 + breath * .03;
+  const top = base - 10 * u;
+  const blanket = g.createLinearGradient(0, base - 26 * u, 0, base + 2 * u);
+  blanket.addColorStop(0, '#9fb0e0'); blanket.addColorStop(1, '#5d6ea8');
   g.fillStyle = blanket;
   g.beginPath();
-  g.moveTo(head.x + r * .7, base - L * .04);
-  g.bezierCurveTo(head.x + r * .9, base - L * .15 * lift, cx - L * .16, base - L * .19 * lift, cx - L * .02, base - L * .15 * lift);
-  g.bezierCurveTo(cx + L * .08, base - L * .12, cx + L * .14, base - L * .2, cx + L * .26, base - L * .17);
-  g.bezierCurveTo(cx + L * .38, base - L * .13, cx + L * .46, base - L * .1, x1 - L * .01, base - L * .06);
-  g.lineTo(x1 - L * .01, base + L * .02);
-  g.lineTo(head.x + r * .4, base + L * .02);
+  g.moveTo(hx - 2 * u, top - 1 * u);
+  g.bezierCurveTo(hx + 3 * u, hy + 5 * u, hx + 8 * u, base - 22 * u * lift, hx + 15 * u, base - 22 * u * lift);
+  g.bezierCurveTo(hx + 22 * u, base - 22 * u * lift, cx - 8 * u, base - 16 * u, cx - 2 * u, base - 16.5 * u);
+  g.bezierCurveTo(cx + 6 * u, base - 17 * u, cx + 8 * u, base - 24 * u * lift, cx + 16 * u, base - 23 * u * lift);
+  g.bezierCurveTo(cx + 26 * u, base - 22 * u, cx + 30 * u, base - 15 * u, cx + 36 * u, base - 15.5 * u);
+  g.bezierCurveTo(x1 - 12 * u, base - 16 * u, x1 - 6 * u, base - 13 * u, x1 - 5 * u, top);
+  g.lineTo(x1 - 5 * u, base + 2 * u);
+  for (let i = 0; i <= 8; i++) { const fx = x1 - 5 * u - i * (x1 - 5 * u - (hx + 2 * u)) / 8; g.lineTo(fx, base + 2 * u + (i % 2 ? 1.2 * u : 0)); }
   g.closePath(); g.fill();
-  g.strokeStyle = 'rgba(200,215,255,.35)'; g.lineWidth = 1.2; g.stroke();
+  g.strokeStyle = moon; g.lineWidth = 1.2; g.stroke();
+  // Borde doblado de la sábana bajo la barbilla.
+  g.fillStyle = '#e4e8f6'; g.beginPath(); g.moveTo(hx - 2 * u, top - 1 * u);
+  g.bezierCurveTo(hx + 2 * u, hy + 5.5 * u, hx + 6 * u, hy + 4 * u, hx + 10 * u, hy + 6.5 * u);
+  g.lineTo(hx + 11 * u, hy + 9 * u); g.bezierCurveTo(hx + 6 * u, hy + 7 * u, hx + 2 * u, top + 1 * u, hx - 2 * u, top + 1.5 * u); g.closePath(); g.fill();
+  // Mano que asoma sobre la manta.
+  g.fillStyle = '#a8735a';
+  g.beginPath(); g.ellipse(hx + 8.5 * u, hy + 6.2 * u, 2.6 * u, 1.6 * u, -.2, 0, TAU); g.fill();
+  g.strokeStyle = 'rgba(58,34,48,.55)'; g.lineWidth = Math.max(.8, .2 * u);
+  for (let i = 0; i < 3; i++) { g.beginPath(); g.moveTo(hx + (8 + i * 1.1) * u, hy + 5 * u); g.lineTo(hx + (8.3 + i * 1.1) * u, hy + 6.5 * u); g.stroke(); }
   // Pliegues.
-  g.strokeStyle = 'rgba(20,26,50,.45)'; g.lineWidth = 1.4;
-  for (const [a, b, c] of [[-.08, .02, .12], [.05, .16, .24], [.3, .38, .44]]) {
-    g.beginPath(); g.moveTo(cx + L * a, base - L * .02); g.quadraticCurveTo(cx + L * b, base - L * .09, cx + L * c, base - L * .05); g.stroke();
+  g.strokeStyle = 'rgba(40,50,100,.35)'; g.lineWidth = 1.4;
+  for (const [a, b, c, d] of [[-14, -12, -4, -8], [4, -13, 12, -9], [20, -12, 30, -10]] as const) {
+    g.beginPath(); g.moveTo(cx + a * u, base + b * u); g.quadraticCurveTo(cx + (a + c) / 2 * u, base + (b - 4) * u, cx + c * u, base + d * u); g.stroke();
   }
+  for (let i = 0; i < 4; i++) { const fx = cx - 20 * u + i * 14 * u; g.beginPath(); g.moveTo(fx, top + 1 * u); g.quadraticCurveTo(fx + 2 * u, base - 4 * u, fx - 1 * u, base + 1.5 * u); g.stroke(); }
+
   // Ondas conceptuales sobre la cabeza (no son datos medidos).
   for (let k = 0; k < 3; k++) {
     g.strokeStyle = `rgba(255,214,170,${.3 - k * .08})`; g.lineWidth = 1.2;
     g.beginPath();
     for (let i = 0; i <= 60; i++) {
-      const x = head.x - L * .1 + i / 60 * L * .34;
-      const y = head.y - L * (.19 + k * .055) + Math.sin(i / 60 * TAU * 1.5 + (reduce ? 0 : t * .6) + k) * L * .012 * (1 - Math.abs(i / 30 - 1));
+      const x = hx - 8 * u + i / 60 * 30 * u;
+      const y = hy - (14 + k * 5) * u + Math.sin(i / 60 * TAU * 1.5 + (reduce ? 0 : t * .6) + k) * 1.2 * u * (1 - Math.abs(i / 30 - 1));
       if (i) g.lineTo(x, y); else g.moveTo(x, y);
     }
     g.stroke();

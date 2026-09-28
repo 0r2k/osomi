@@ -28,7 +28,7 @@ const chapters = [
   ['03 / UNA SEMANA', 'Damos forma a nuestros días.', 'La semana organiza el tiempo de otra manera: su historia incluye tradiciones culturales y religiosas.', 'Siete días · un ritmo de calendario'],
 ];
 
-export default function P08Scene({ onChoice, choice, pausa, lead = 0, onReading }: { onChoice: (choice: 'bible' | 'close') => void; choice: 'bible' | 'close' | null; pausa?: string | null; lead?: number; onReading?: () => void }) {
+export default function P08Scene({ pausa, lead = 0, tail = 0, onSources }: { pausa?: string | null; lead?: number; tail?: number; onSources: () => void }) {
   const root = useRef<HTMLDivElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const cards = useRef<HTMLOListElement>(null);
@@ -37,15 +37,8 @@ export default function P08Scene({ onChoice, choice, pausa, lead = 0, onReading 
   const [chapter, setChapter] = useState(0);
   const [paused, setPaused] = useState(false);
   const [failed, setFailed] = useState(false);
-  const control = useRef({ paused: false, yaw: 0, pitch: 0, dirty: true, gather: 0 });
+  const control = useRef({ paused: false, yaw: 0, pitch: 0, dirty: true });
 
-  useGSAP(() => {
-    const state = control.current;
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    // Primero se llenan los seis días (CSS); después se forma la pila con el día 7 encima.
-    const tween = gsap.to(state, { gather: choice === 'bible' ? 1 : 0, delay: choice === 'bible' && !reduce ? 1 : 0, duration: reduce ? 0 : 1.15, ease: 'power2.inOut', onUpdate: () => { state.dirty = true; } });
-    return () => { tween.kill(); };
-  }, { dependencies: [choice], scope: root });
 
   useGSAP(() => {
     if (failed) return;
@@ -81,7 +74,9 @@ export default function P08Scene({ onChoice, choice, pausa, lead = 0, onReading 
     const captionElements = Array.from(captions.current!.children) as HTMLElement[];
     const cardSetters = cardElements.map(el => ({ x: gsap.quickSetter(el, 'x', 'px'), y: gsap.quickSetter(el, 'y', 'px'), scaleX: gsap.quickSetter(el, 'scaleX'), scaleY: gsap.quickSetter(el, 'scaleY'), rotation: gsap.quickSetter(el, 'rotation', 'deg'), opacity: gsap.quickSetter(el, 'opacity') }));
     // Con `lead`, la escena espera quieta mientras se funde sobre el globo de P07.
-    const progress = () => lead ? ramp(playhead.p, lead, 1) : playhead.p;
+    // Con `tail`, el último tramo del scroll llena los seis días y forma la pila con el día 7 encima.
+    const progress = () => lead || tail ? ramp(playhead.p, lead, 1 - tail) : playhead.p;
+    const tailProgress = () => tail ? ramp(playhead.p, 1 - tail, 1) : 0;
     const canDrag = () => progress() >= .42 && progress() < .76;
     const resize = () => {
       width = holder.clientWidth; height = holder.clientHeight;
@@ -123,7 +118,8 @@ export default function P08Scene({ onChoice, choice, pausa, lead = 0, onReading 
     canvas.addEventListener('webglcontextlost', contextLost);
     const render = (_time: number, delta: number) => {
       if (document.hidden || !visible) return;
-      const p = progress();
+      const p = progress(), q = tailProgress();
+      section.classList.toggle('p08-bible-chosen', q > .02);
       const autonomous = p >= .22 && p < .94 && !state.paused;
       if (!state.dirty && !autonomous) return;
       state.dirty = false;
@@ -179,7 +175,7 @@ export default function P08Scene({ onChoice, choice, pausa, lead = 0, onReading 
         const destinationY = mobile ? height / 2 + (i < 4 ? -44 : 52) : height / 2;
         // A single elliptical arc from the Sun to each permanent calendar slot.
         const arc = Math.sin(Math.PI * travel);
-        const gather = state.gather * smooth(ramp(p, .9, .94));
+        const gather = smooth(ramp(q, .3, .95));
         const offsets = [[-14, 5, -17], [12, -8, 13], [-8, -12, -9], [16, 7, 18], [-12, 10, -13], [8, -5, 8], [0, 0, 0]];
         const [dx, dy, tilt] = offsets[i];
         const size = Math.max(1, Math.min(mobile ? 2.5 : 3.4, height / (mobile ? 125 : 150), width / 150));
@@ -209,8 +205,8 @@ export default function P08Scene({ onChoice, choice, pausa, lead = 0, onReading 
   function pause() { control.current.paused = !control.current.paused; control.current.dirty = true; setPaused(control.current.paused); }
   function rotate(amount: number) { control.current.yaw += amount; control.current.dirty = true; }
   function reset() { control.current.yaw = 0; control.current.pitch = 0; control.current.dirty = true; }
-  if (failed) return <div className="p08-static"><h2>Continúa con la explicación.</h2><p>La vista 3D no está disponible en este dispositivo. Puedes explorar los mismos hechos en la lectura.</p><a href="#lectura">Leer día, año y semana ↓</a></div>;
-  return <div ref={root} className={`p08-scroll${choice === 'bible' ? ' p08-bible-chosen' : ''}`} data-phase="day">
+  if (failed) return <div className="p08-static"><h2>Continúa con la explicación.</h2><p>La vista 3D no está disponible en este dispositivo. Puedes explorar los mismos hechos en la lectura.</p><button className="p08-sources" onClick={onSources}>Explicación y fuentes</button></div>;
+  return <div ref={root} className="p08-scroll" data-phase="day">
     <div className="p08-stage">
       <div className="p08-caption-stack" ref={captions}>{chapters.map((text, i) => <div key={i} className="p08-caption" aria-hidden={chapter !== i} style={{opacity: i === 0 ? 1 : 0}}><p className="eyebrow">{text[0]}</p><h2>{text[1]}</h2><p>{text[2]}</p><span>{text[3]}</span></div>)}</div>
       <div className="p08-universe" ref={viewport} role="img" aria-label="Modelo de la Tierra, el Sol y su órbita. La explicación completa está disponible después de la escena.">
@@ -218,11 +214,11 @@ export default function P08Scene({ onChoice, choice, pausa, lead = 0, onReading 
         <canvas ref={sunCover} aria-hidden="true" className="p08-sun-cover" />
       </div>
       <div className="p08-controls">
-        <div className="p09-gate"><p>La Biblia da a este ritmo un significado particular. ¿Quieres explorarlo?</p><div><button onClick={() => onChoice('bible')} aria-pressed={choice === 'bible'}>Explorar la perspectiva bíblica</button><button onClick={() => onChoice('close')} aria-pressed={choice === 'close'}>Ir al cierre</button></div>{choice === 'bible' && <p className="p09-six"><small>PERSPECTIVA BÍBLICA · ÉXODO 20:9–10, PARÁFRASIS</small>{sixDays[pausa ?? ''] ?? 'Seis días para todo lo que te ocupa.'} <em>Uno que no se mide en tareas.</em></p>}{choice && <a href={choice === 'bible' ? '#continuacion' : '#cierre'}>{choice === 'bible' ? 'Continuar con la perspectiva bíblica ↓' : 'Continuar al cierre ↓'}</a>}</div>
+        <div className="p09-gate"><p>La Biblia da a este ritmo un significado particular.</p><p className="p09-six"><small>PERSPECTIVA BÍBLICA · ÉXODO 20:9–10</small>{sixDays[pausa ?? ''] ?? 'Seis días para todo lo que te ocupa.'} <em>Uno que no se mide en tareas.</em></p><p className="p09-more">Sigue bajando ↓</p></div>
         <div className="p08-orbit-controls"><button onClick={pause} aria-pressed={paused}>{paused ? 'Reanudar órbita' : 'Pausar órbita'}</button><button onClick={() => rotate(-.25)} aria-label="Girar perspectiva a la izquierda">←</button><button onClick={() => rotate(.25)} aria-label="Girar perspectiva a la derecha">→</button><button onClick={reset}>Restablecer vista</button></div>
         <p className="p08-drag-hint">Arrastra a los lados para cambiar de perspectiva. Sigue bajando para continuar.</p>
         <p className="p08-scroll-hint">Desplázate para continuar ↓</p>
-        <span>Tamaños, distancias y velocidad simplificados.</span>{onReading && <button className="p08-reading-toggle" onClick={onReading}>Leer sin movimiento</button>}<a href="#lectura">Explicación y fuentes ↓</a>
+        <span>Tamaños, distancias y velocidad simplificados.</span><button className="p08-sources" onClick={onSources}>Explicación y fuentes</button>
       </div>
     </div>
   </div>;

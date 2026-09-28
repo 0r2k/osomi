@@ -131,12 +131,28 @@ export function drawArt(g: CanvasRenderingContext2D, kind: ArtKind, box: Box, p:
     }
   }
   if (kind === 'sunrise') {
-    wash(g, gg => { gg.beginPath(); gg.rect(x + w * .05, y, w * .9, h * .75); }, [246, 206, 170], r, phase(p, 0, .4), { x: cx, y: y + h * .7 }, reach, 1.2);
-    wash(g, gg => { gg.beginPath(); gg.arc(cx, y + h * .66, h * .24, Math.PI, TAU); gg.closePath(); }, [244, 170, 96], r, phase(p, .2, .55), { x: cx, y: y + h * .66 }, h * .4, 1.8);
-    wash(g, gg => { gg.beginPath(); gg.moveTo(x + w * .05, y + h * .72); gg.quadraticCurveTo(x + w * .3, y + h * .56, x + w * .55, y + h * .7); gg.quadraticCurveTo(x + w * .78, y + h * .8, x + w * .95, y + h * .66); gg.lineTo(x + w * .95, y + h * .9); gg.lineTo(x + w * .05, y + h * .9); gg.closePath(); }, [110, 134, 118], r, phase(p, .4, .75), { x: cx, y: y + h * .8 }, reach, 1.6);
+    // Cielo en una mancha ovalada (sin bordes rectos); el sol entero queda detrás de colinas opacas.
+    const sky = { x: cx, y: y + h * .52, rx: w * .46, ry: h * .5 };
+    const horizon = y + h * .64, sunR = h * .2;
+    wash(g, gg => { gg.beginPath(); gg.ellipse(sky.x, sky.y, sky.rx, sky.ry, 0, 0, TAU); }, [246, 206, 170], r, phase(p, 0, .4), { x: cx, y: horizon }, reach, 1.2);
+    wash(g, gg => { gg.beginPath(); gg.arc(cx, horizon + sunR * .15, sunR, 0, TAU); }, [244, 160, 86], r, phase(p, .2, .55), { x: cx, y: horizon }, sunR * 2, 1.9);
     for (let i = 0; i < 5; i++) {
       const a = Math.PI * (1.1 + i * .2);
-      ink(g, [[cx + Math.cos(a) * h * .3, y + h * .66 + Math.sin(a) * h * .3], [cx + Math.cos(a) * h * .4, y + h * .66 + Math.sin(a) * h * .4]], phase(p, .7 + i * .05, .85 + i * .03), 1.3, 'rgba(180,110,50,.7)');
+      ink(g, [[cx + Math.cos(a) * sunR * 1.3, horizon + Math.sin(a) * sunR * 1.3], [cx + Math.cos(a) * sunR * 1.75, horizon + Math.sin(a) * sunR * 1.75]], phase(p, .7 + i * .05, .85 + i * .03), 1.3, 'rgba(180,110,50,.7)');
+    }
+    const hills = phase(p, .4, .75);
+    if (hills > 0) {
+      g.save();
+      g.beginPath(); g.ellipse(sky.x, sky.y, sky.rx, sky.ry, 0, 0, TAU); g.clip();
+      g.globalAlpha = Math.min(1, hills * 1.6);
+      const far = (gg: CanvasRenderingContext2D) => { gg.beginPath(); gg.moveTo(x, horizon + h * .06); gg.bezierCurveTo(x + w * .25, horizon - h * .1, x + w * .45, horizon + h * .02, x + w * .62, horizon - h * .02); gg.bezierCurveTo(x + w * .8, horizon - h * .06, x + w * .9, horizon + h * .01, x + w, horizon); gg.lineTo(x + w, y + h); gg.lineTo(x, y + h); gg.closePath(); };
+      const near = (gg: CanvasRenderingContext2D) => { gg.beginPath(); gg.moveTo(x, horizon + h * .14); gg.bezierCurveTo(x + w * .3, horizon + h * .04, x + w * .6, horizon + h * .2, x + w, horizon + h * .1); gg.lineTo(x + w, y + h); gg.lineTo(x, y + h); gg.closePath(); };
+      far(g); g.fillStyle = '#c4c9b3'; g.fill();
+      near(g); g.fillStyle = '#a8b6a0'; g.fill();
+      g.globalAlpha = 1;
+      wash(g, far, [150, 166, 136], r, hills, { x: cx, y: horizon }, reach, 1.2);
+      wash(g, near, [112, 136, 116], r, phase(p, .5, .85), { x: cx, y: horizon + h * .15 }, reach, 1.5);
+      g.restore();
     }
   }
   g.restore();

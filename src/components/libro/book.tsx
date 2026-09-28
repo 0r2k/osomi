@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useSound } from '../descanso/sound';
-import { PASSAGES, SOURCES, type SourceKey } from '../cierre/content';
+import { PASSAGES, SOURCES, TRANSLATION, type SourceKey } from '../cierre/content';
 import { drawArt, type ArtKind } from './art';
 import { clampCorner, computeTurn, tracePath, type V } from './curl';
 import { coverCanvas, edgeCanvas, endpaperCanvas, paperCanvas, type Side } from './paper';
@@ -26,10 +26,12 @@ type TurnState = {
 
 const PAGES: { id: string; art?: ArtKind }[] = [
   { id: 'titulo', art: 'moon' }, { id: 'indice' }, { id: 'resumen' }, { id: 'descubriste', art: 'cards' },
-  { id: 'pasajes1', art: 'branch' }, { id: 'pasajes2' }, { id: 'fuentes1', art: 'globe' }, { id: 'fuentes2' },
-  { id: 'reflexion', art: 'cup' }, { id: 'notas' }, { id: 'colofon', art: 'sunrise' },
+  { id: 'genesis', art: 'branch' }, { id: 'exodo' }, { id: 'marcos' }, { id: 'isaias' },
+  { id: 'fuentes1', art: 'globe' }, { id: 'fuentes2' }, { id: 'reflexion', art: 'cup' }, { id: 'notas' }, { id: 'colofon', art: 'sunrise' },
 ];
-const INDEX: [string, number][] = [['Resumen', 2], ['Lo que descubriste', 3], ['Pasajes bíblicos', 4], ['Fuentes', 6], ['Para reflexionar', 8], ['Tus notas', 9]];
+const NOTES = 11;
+const SPREADS = Math.floor((PAGES.length - 1) / 2) + 1;
+const INDEX: [string, number][] = [['Resumen', 2], ['Lo que descubriste', 3], ['Pasajes bíblicos', 4], ['Fuentes', 8], ['Para reflexionar', 10], ['Tus notas', NOTES]];
 
 const ease = (t: number) => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 const clamp = (v: number, a = 0, b = 1) => Math.max(a, Math.min(b, v));
@@ -55,7 +57,7 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
     cache: new Map<string, HTMLCanvasElement>(), raf: 0, hinted: false,
   });
 
-  const count = () => S.current.layout?.spread ? 6 : PAGES.length;
+  const count = () => S.current.layout?.spread ? SPREADS : PAGES.length;
   const leftOf = (k: number): Surface => S.current.layout?.spread ? (k === 0 ? 'endpaper' : 2 * k - 1) : null;
   const rightOf = (k: number): Surface => S.current.layout?.spread ? 2 * k : k;
   const spreadOfPage = (i: number) => S.current.layout?.spread ? Math.floor((i + 1) / 2) : i;
@@ -476,7 +478,7 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  const total = single ? PAGES.length : 6;
+  const total = single ? PAGES.length : SPREADS;
   const shown = single ? [spread] : [2 * spread - 1, 2 * spread].filter(i => i >= 0);
   const label = shown.length === 2 ? `Páginas ${shown[0] + 1} y ${shown[1] + 1} de ${PAGES.length}` : `Página ${shown[0] + 1} de ${PAGES.length}`;
   const setPage = (el: HTMLElement | null, i: number) => { pageEls.current[i] = el; };
@@ -525,56 +527,75 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
           {folio(3)}
         </section>
         <section ref={el => setPage(el, 4)} className="bk-page">
-          <p className="bk-eyebrow">Perspectiva bíblica · Interpretación adventista</p>
-          <h3>Pasajes</h3>
-          {PASSAGES.slice(0, 2).map(([ref, text]) => <div className="bk-passage" key={ref}><p className="bk-ref">{ref}</p><p>{text}</p></div>)}
-          <div className="bk-art" data-art style={{ height: 120 }} />
+          <p className="bk-eyebrow">Perspectiva bíblica · 1 de 4</p>
+          <h3>{PASSAGES[0].title}</h3>
+          <p className="bk-ref">{PASSAGES[0].reference}</p>
+          <blockquote className="bk-verses">{PASSAGES[0].verses.map(([n, text]) => <span key={n}><sup>{n}</sup> {text} </span>)}</blockquote>
+          <p className="bk-comment">{PASSAGES[0].context}</p>
+          <div className="bk-art" data-art style={{ height: 90 }} />
           {folio(4)}
         </section>
         <section ref={el => setPage(el, 5)} className="bk-page">
-          <p className="bk-eyebrow">Perspectiva bíblica · Interpretación adventista</p>
-          <h3>Pasajes</h3>
-          {PASSAGES.slice(2).map(([ref, text]) => <div className="bk-passage" key={ref}><p className="bk-ref">{ref}</p><p>{text}</p></div>)}
-          <p className="bk-small">Resúmenes editoriales, no citas literales. La traducción bíblica de referencia está pendiente de revisión.</p>
+          <p className="bk-eyebrow">Perspectiva bíblica · 2 de 4</p>
+          <h3>{PASSAGES[1].title}</h3>
+          <p className="bk-ref">{PASSAGES[1].reference}</p>
+          <blockquote className="bk-verses">{PASSAGES[1].verses.map(([n, text]) => <span key={n}><sup>{n}</sup> {text} </span>)}</blockquote>
+          <p className="bk-comment">{PASSAGES[1].context}</p>
           {folio(5)}
         </section>
         <section ref={el => setPage(el, 6)} className="bk-page">
+          <p className="bk-eyebrow">Perspectiva bíblica · 3 de 4</p>
+          <h3>{PASSAGES[2].title}</h3>
+          <p className="bk-ref">{PASSAGES[2].reference}</p>
+          <blockquote className="bk-verses">{PASSAGES[2].verses.map(([n, text]) => <span key={n}><sup>{n}</sup> {text} </span>)}</blockquote>
+          <p className="bk-comment">{PASSAGES[2].context}</p>
+          {folio(6)}
+        </section>
+        <section ref={el => setPage(el, 7)} className="bk-page">
+          <p className="bk-eyebrow">Perspectiva bíblica · 4 de 4</p>
+          <h3>{PASSAGES[3].title}</h3>
+          <p className="bk-ref">{PASSAGES[3].reference}</p>
+          <blockquote className="bk-verses">{PASSAGES[3].verses.map(([n, text]) => <span key={n}><sup>{n}</sup> {text} </span>)}</blockquote>
+          <p className="bk-comment">{PASSAGES[3].context}</p>
+          {folio(7)}
+        </section>
+        <section ref={el => setPage(el, 8)} className="bk-page">
           <p className="bk-eyebrow">Fuentes · Ciencia</p>
           <h3>Fuentes</h3>
           {(['S1', 'S2', 'A1', 'A2'] as SourceKey[]).map(sourceItem)}
           <div className="bk-art" data-art style={{ height: 90 }} />
-          {folio(6)}
+          {folio(8)}
         </section>
-        <section ref={el => setPage(el, 7)} className="bk-page">
-          <p className="bk-eyebrow">Fuentes · Historia y creencia</p>
+        <section ref={el => setPage(el, 9)} className="bk-page">
+          <p className="bk-eyebrow">Fuentes · Historia y Biblia</p>
           <h3>Fuentes</h3>
           {(['H1', 'B1'] as SourceKey[]).map(sourceItem)}
           <p className="bk-small">Cada fuente respalda solo lo que afirma. Una analogía visual no cuenta como evidencia, y una fuente científica no demuestra una creencia.</p>
-          {folio(7)}
+          {folio(9)}
         </section>
-        <section ref={el => setPage(el, 8)} className="bk-page">
+        <section ref={el => setPage(el, 10)} className="bk-page">
           <p className="bk-eyebrow">Sin respuesta correcta</p>
           <h3>Para reflexionar</h3>
           <p className="bk-item"><span className="bk-dash">—</span> ¿Qué demanda te acompaña incluso cuando el día termina?</p>
           <p className="bk-item"><span className="bk-dash">—</span> ¿En qué momento de tu semana podrías dejar de producir, aunque sea un poco?</p>
           <p className="bk-item"><span className="bk-dash">—</span> ¿Con quién te gustaría compartir un tiempo de descanso?</p>
-          {biblical && <p className="bk-item"><span className="bk-dash">—</span> ¿Qué te llama la atención de un descanso que incluye a los demás?</p>}
+          <p className="bk-item"><span className="bk-dash">—</span> ¿Qué te llama la atención de un descanso que incluye a los demás?</p>
           <div className="bk-art" data-art style={{ height: 130 }} />
-          {folio(8)}
+          {folio(10)}
         </section>
-        <section ref={el => setPage(el, 9)} className="bk-page">
+        <section ref={el => setPage(el, 11)} className="bk-page">
           <p className="bk-eyebrow">Solo para ti</p>
           <h3>Tus notas</h3>
           <p className="bk-small">Esta nota es temporal: se conserva mientras la pestaña esté abierta y se pierde al cerrarla. Guardarla entre visitas requerirá una cuenta.</p>
           <label className="visually-hidden" htmlFor="book3d-note">Tu nota</label>
           <textarea id="book3d-note" value={note} onChange={e => setNote(e.target.value)} maxLength={2000} placeholder="Escribe lo que quieras recordar…" />
-          {folio(9)}
+          {folio(11)}
         </section>
-        <section ref={el => setPage(el, 10)} className="bk-page bk-colophon">
+        <section ref={el => setPage(el, 12)} className="bk-page bk-colophon">
           <div className="bk-art" data-art style={{ height: 200 }} />
           <h3>Cuando quieras, sigue explorando.</h3>
-          <p className="bk-small">Osomi · Mira más de cerca. Primera experiencia: ¿Por qué necesito descansar? Prototipo, septiembre de 2026.</p>
-          {folio(10)}
+          <p className="bk-small">Osomi · Mira más de cerca. Primera experiencia: ¿Por qué necesito descansar? Textos bíblicos: {TRANSLATION}, dominio público. Prototipo, septiembre de 2026.</p>
+          {folio(12)}
         </section>
       </div>
       {mode === 'closed' && <button className="book3d-open" onClick={openBook} autoFocus>Abrir el libro</button>}
@@ -584,7 +605,7 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
       <button onClick={() => go(S.current.k - 1)} disabled={mode !== 'open' || spread === 0}>← Anterior</button>
       <button onClick={() => go(spreadOfPage(1))} disabled={mode !== 'open'}>Índice</button>
       <span aria-live="polite">{mode === 'open' ? label : 'Libro cerrado'}</span>
-      <button onClick={() => go(spreadOfPage(9))} disabled={mode !== 'open'}>Tus notas</button>
+      <button onClick={() => go(spreadOfPage(NOTES))} disabled={mode !== 'open'}>Tus notas</button>
       <button onClick={() => go(S.current.k + 1)} disabled={mode !== 'open' || spread >= total - 1}>Siguiente →</button>
       <p className="book3d-hint">{mode === 'open' ? 'Arrastra la esquina de la hoja, tócala o usa las flechas del teclado.' : 'Toca la portada para abrir.'}</p>
     </footer>

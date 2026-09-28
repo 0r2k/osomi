@@ -96,6 +96,11 @@ export function Opening({ pausa, onPausa, onUnlock }: { pausa: Pausa | null; onP
       if (s === prev && !state.dirty && !settling && !twinkling && !pulsing) return;
       state.dirty = false;
 
+      // Pasos: cada vez que el balanceo apoya un pie (la misma curva que dibuja la figura).
+      const walking = s > .2 && s < 3.2 && !reduce;
+      const footfall = Math.floor(s * 9 / Math.PI), lastFootfall = Math.floor(prev * 9 / Math.PI);
+      if (walking && footfall !== lastFootfall) sound.get()?.footstep(footfall % 2 ? .25 : -.25);
+
       const events = drawOpening(g, { s, now, width, height, reduce, chosen: !!chosenCategory, hush: state.hush, pulse: state.pulse }, prev, bubbles.current, stars);
       const a = sound.get();
       if (a) {
@@ -171,8 +176,9 @@ export function Opening({ pausa, onPausa, onUnlock }: { pausa: Pausa | null; onP
   const [lead, rest] = phrases[pausa ?? 'ninguna'];
 
   return <section ref={section} className="opening" style={{ height: `${(unlocked ? T.unlockedScreens : T.lockedScreens) * 100}svh` }} aria-label="¿Por qué necesito descansar? Apertura">
-    <div ref={stage} className="opening-stage">
+    <div ref={stage} className="opening-stage" data-lab={step === 'lab' && !unlocked && stationVisible}>
       <canvas ref={canvas} aria-hidden="true" />
+      <div className="opening-scrim" aria-hidden="true" />
 
       <div className="opening-copy"><p className="eyebrow">OSOMI · MIRA MÁS DE CERCA</p><h1>¿Por qué necesito descansar?</h1><p>Explora a tu ritmo. Desplázate para comenzar.</p></div>
       <div className="opening-copy"><h2>A veces el día termina.</h2></div>
