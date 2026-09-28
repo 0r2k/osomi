@@ -7,6 +7,7 @@ import { drawArt, type ArtKind } from './art';
 import { clampCorner, computeTurn, tracePath, type V } from './curl';
 import { coverCanvas, edgeCanvas, endpaperCanvas, paperCanvas, type Side } from './paper';
 import { rasterizeText } from './raster';
+import { tiltTowardCursor } from './tilt';
 import './book.css';
 
 // Libro del tema en canvas 2D con proyección 3D propia (sin Three.js).
@@ -44,6 +45,7 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
   const dialog = useRef<HTMLDialogElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
+  const tilt = useRef<HTMLDivElement>(null);
   const pageEls = useRef<(HTMLElement | null)[]>([]);
   const sound = useSound();
   const [mode, setMode] = useState<'closed' | 'opening' | 'open'>('closed');
@@ -138,7 +140,7 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
       const t = st.openT, e = ease(t), theta = Math.PI * ease(clamp((t - .12) / .88));
       const closedSpine = L.spread ? L.w / 2 - W / 2 : L.spine;
       const spine = lerp(closedSpine, L.spine, e);
-      const yaw = lerp(.36, 0, e), pitch = lerp(.1, 0, e), shrink = lerp(.86, 1, e), focal = Math.max(W, H) * 2.4, T = 14 * L.k;
+      const yaw = lerp(.22, 0, e), pitch = lerp(.1, 0, e), shrink = lerp(.86, 1, e), focal = Math.max(W, H) * 2.4, T = 14 * L.k;
       const px = spine + W / 2, py = top + H / 2;
       const project = (x: number, y: number, z: number): V => {
         const X = x - W / 2, Y = y - H / 2;
@@ -374,6 +376,9 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
     if (!open && d.open) d.close();
   }, [open, relayout]);
 
+  // El libro se inclina levemente hacia el cursor (se endereza mientras gira una hoja).
+  useEffect(() => open ? tiltTowardCursor(tilt.current, 7, 5, 700, tilt.current, { ry: 0, rx: 0 }) : undefined, [open]);
+
   // ---------- Acciones ----------
   const openBook = () => {
     const st = S.current;
@@ -493,6 +498,7 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
     </header>
 
     <div ref={stage} className="book3d-stage" onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}>
+      <div ref={tilt} className="book3d-tilt" data-still={turning}>
       <canvas ref={canvas} aria-hidden="true" />
       <div className="book3d-pages">
         <section ref={el => setPage(el, 0)} className="bk-page bk-title-page">
@@ -597,6 +603,7 @@ export function Book3D({ open, onClose, onFlat, biblical, takeaways, note, setNo
           <p className="bk-small">Osomi · Mira más de cerca. Primera experiencia: ¿Por qué necesito descansar? Textos bíblicos: {TRANSLATION}, dominio público. Prototipo, septiembre de 2026.</p>
           {folio(12)}
         </section>
+      </div>
       </div>
       {mode === 'closed' && <button className="book3d-open" onClick={openBook} autoFocus>Abrir el libro</button>}
     </div>

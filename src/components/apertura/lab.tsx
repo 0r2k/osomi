@@ -51,7 +51,8 @@ type Phase =
 export function Lab({ active, onMode, onDistract, onRelease }: {
   active: boolean;
   onMode: (mode: 'none' | Condition) => void;
-  onDistract: () => void;
+  /** `intense`: segunda secuencia de la ronda con distracciones, más difícil. */
+  onDistract: (intense: boolean) => void;
   onRelease: () => void;
 }) {
   const [phase, setPhase] = useState<Phase>({ name: 'intro' });
@@ -74,15 +75,17 @@ export function Lab({ active, onMode, onDistract, onRelease }: {
 
   // Avisos ficticios sólo en la ronda con distracciones; se pausan si la pestaña o el panel no están visibles.
   const distracting = active && condition === 'busy' && (phase.name === 'memorize' || phase.name === 'recall');
+  const intense = distracting && 'trial' in phase && phase.trial === 1;
   useEffect(() => {
     if (!distracting) return;
     let timer = 0;
     const schedule = () => {
-      timer = window.setTimeout(() => { if (!document.hidden) onDistract(); schedule(); }, 1100 + Math.random() * 1000);
+      const wait = intense ? 750 + Math.random() * 650 : 1100 + Math.random() * 1000;
+      timer = window.setTimeout(() => { if (!document.hidden) onDistract(intense); schedule(); }, wait);
     };
-    timer = window.setTimeout(() => { if (!document.hidden) onDistract(); schedule(); }, 600);
+    timer = window.setTimeout(() => { if (!document.hidden) onDistract(intense); schedule(); }, 600);
     return () => window.clearTimeout(timer);
-  }, [distracting, onDistract]);
+  }, [distracting, intense, onDistract]);
 
   function startTrial(nextRound: number, nextTrial: number) {
     setTrial(makeTrial());

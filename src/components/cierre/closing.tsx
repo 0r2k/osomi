@@ -8,6 +8,7 @@ import { useSound } from '../descanso/sound';
 import './closing.css';
 import { PASSAGES, QUESTIONS, SOURCES, TRANSLATION, type SourceKey } from './content';
 import { coverCanvas } from '../libro/paper';
+import { tiltTowardCursor } from '../libro/tilt';
 import { Book3D } from '../libro/book';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -38,6 +39,8 @@ function Bust() {
 /** La portada del libro, pintada con el mismo código del libro 3D. */
 function BookCover({ onOpen }: { onOpen: (button: HTMLButtonElement) => void }) {
   const canvas = useRef<HTMLCanvasElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  useEffect(() => tiltTowardCursor(button.current, 16, 10), []);
   useEffect(() => {
     const c = canvas.current;
     if (!c) return;
@@ -45,7 +48,7 @@ function BookCover({ onOpen }: { onOpen: (button: HTMLButtonElement) => void }) 
     c.width = cover.width; c.height = cover.height;
     c.getContext('2d')!.drawImage(cover, 0, 0);
   }, []);
-  return <button className="book-cover" onClick={event => onOpen(event.currentTarget)} aria-label="Abrir el libro del tema">
+  return <button ref={button} className="book-cover" onClick={event => onOpen(event.currentTarget)} aria-label="Abrir el libro del tema">
     <canvas ref={canvas} width={642} height={924} aria-hidden="true" />
     <span className="book-cover-pages" aria-hidden="true" />
     <span className="book-cover-ribbon" aria-hidden="true" />

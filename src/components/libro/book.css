@@ -44,3 +44,5 @@
 .bk-verses{margin:4px 0 12px;padding:0 0 0 14px;border-left:2px solid #c9a86a;font:13.8px/1.55 Georgia,serif;color:#2d2a24}
 .bk-verses sup{font:600 9px 'Avenir Next','Segoe UI',sans-serif;color:#8a6d3b}
 .bk-comment{font:13px/1.55 'Avenir Next','Segoe UI',sans-serif!important;color:#5d5546}
+.book3d-tilt{position:absolute;inset:0;transform:perspective(1600px) rotateY(var(--ry,0deg)) rotateX(var(--rx,0deg));transition:transform .45s cubic-bezier(.2,.8,.2,1)}
+.book3d-tilt[data-still=true]{transform:none}

@@ -112,10 +112,10 @@
 .path-book li::before{content:'';position:absolute;left:0;top:.45em;width:9px;height:12px;border-radius:2px;background:#e9c985}
 .path-book .path-action{background:#f4c77a;border-color:#f4c77a;color:#1c2544;font-weight:600}
 .book-cover{position:relative;display:block;padding:0;border:0;background:none;cursor:pointer;perspective:900px}
-.book-cover canvas{display:block;width:clamp(150px,20vw,214px);height:auto;border-radius:3px 8px 8px 3px;transform:rotateY(-24deg) rotateX(6deg);transform-origin:left center;box-shadow:18px 22px 40px #0008;transition:transform .6s cubic-bezier(.2,.8,.2,1)}
-.book-cover:hover img,.book-cover:focus-visible img{transform:rotateY(-8deg) rotateX(2deg) translateY(-6px)}
-.book-cover-pages{position:absolute;top:3%;bottom:3%;right:-6px;width:14px;border-radius:0 4px 4px 0;background:repeating-linear-gradient(90deg,#f3ead6 0 2px,#d9ccb0 2px 3px);transform:rotateY(-24deg);transform-origin:left;z-index:-1}
+.book-cover canvas{display:block;width:clamp(150px,20vw,214px);height:auto;border-radius:3px 8px 8px 3px;transform:rotateY(var(--ry,-14deg)) rotateX(var(--rx,5deg));box-shadow:18px 22px 40px #0008;transition:transform .45s cubic-bezier(.2,.8,.2,1)}
+.book-cover:focus-visible canvas{translate:0 -6px}
+.book-cover-pages{position:absolute;top:3%;bottom:3%;right:-6px;width:14px;border-radius:0 4px 4px 0;background:repeating-linear-gradient(90deg,#f3ead6 0 2px,#d9ccb0 2px 3px);transform:rotateY(var(--ry,-14deg)) rotateX(var(--rx,5deg));transition:transform .45s cubic-bezier(.2,.8,.2,1);z-index:-1}
 .book-cover-ribbon{position:absolute;left:18%;bottom:-18px;width:10px;height:40px;background:linear-gradient(90deg,#b98534,#f4c77a,#a8772f);clip-path:polygon(0 0,100% 0,100% 100%,50% 82%,0 100%)}
-@media(prefers-reduced-motion:no-preference){.book-cover canvas{animation:book-float 5s ease-in-out infinite}.book-cover:hover img{animation:none}}
+@media(prefers-reduced-motion:no-preference){.book-cover canvas{animation:book-float 5s ease-in-out infinite}}
 @keyframes book-float{0%,100%{translate:0 0}50%{translate:0 -8px}}
 @media(max-width:700px){.path-book{grid-template-columns:1fr;justify-items:center;text-align:center}.path-book ul{text-align:left}}

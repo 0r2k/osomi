@@ -63,6 +63,21 @@ function ink(g: CanvasRenderingContext2D, pts: [number, number][], progress: num
 const arc = (cx: number, cy: number, rx: number, ry: number, a0: number, a1: number, n = 40): [number, number][] =>
   Array.from({ length: n + 1 }, (_, i) => { const a = a0 + (a1 - a0) * i / n; return [cx + Math.cos(a) * rx, cy + Math.sin(a) * ry]; });
 
+/** Media luna: disco exterior menos un disco desplazado, trazada por sus puntos de corte. */
+function crescent(g: CanvasRenderingContext2D, cx: number, cy: number, r: number, dx: number, dy: number, r2: number) {
+  const d = Math.hypot(dx, dy), ux = dx / d, uy = dy / d;
+  const a = (r * r - r2 * r2 + d * d) / (2 * d), h = Math.sqrt(Math.max(0, r * r - a * a));
+  const p1 = { x: cx + a * ux - h * uy, y: cy + a * uy + h * ux }, p2 = { x: cx + a * ux + h * uy, y: cy + a * uy - h * ux };
+  const ix = cx + dx, iy = cy + dy, away = Math.atan2(-uy, -ux);
+  const passes = (from: number, to: number, via: number) => ((via - from + TAU * 2) % TAU) < ((to - from + TAU * 2) % TAU);
+  const t1 = Math.atan2(p1.y - cy, p1.x - cx), t2 = Math.atan2(p2.y - cy, p2.x - cx);
+  const i1 = Math.atan2(p1.y - iy, p1.x - ix), i2 = Math.atan2(p2.y - iy, p2.x - ix);
+  g.beginPath();
+  g.arc(cx, cy, r, t1, t2, !passes(t1, t2, away));        // borde exterior, lejos del disco que la recorta
+  g.arc(ix, iy, r2, i2, i1, !passes(i2, i1, away));       // borde interior, dentro del disco exterior
+  g.closePath();
+}
+
 export function drawArt(g: CanvasRenderingContext2D, kind: ArtKind, box: Box, p: number) {
   const r = seeded(kind.length * 97 + 13);
   const { x, y, w, h } = box, cx = x + w / 2, cy = y + h / 2;
@@ -73,7 +88,7 @@ export function drawArt(g: CanvasRenderingContext2D, kind: ArtKind, box: Box, p:
     wash(g, gg => { gg.beginPath(); gg.roundRect(sx, sy, s, s, 14); }, [44, 56, 118], r, phase(p, 0, .5), { x: cx, y: cy }, reach, 1.4);
     const wx = cx - s * .16, wy = cy - s * .05, ww = s * .34, wh = s * .38;
     wash(g, gg => { gg.beginPath(); gg.rect(wx, wy, ww, wh); }, [246, 196, 110], r, phase(p, .35, .7), { x: wx + ww / 2, y: wy + wh / 2 }, s * .4, 1.8);
-    wash(g, gg => { gg.beginPath(); gg.arc(cx + s * .28, cy - s * .28, s * .09, 0, TAU); gg.arc(cx + s * .32, cy - s * .31, s * .08, 0, TAU, true); }, [246, 238, 214], r, phase(p, .45, .75), { x: cx + s * .28, y: cy - s * .28 }, s * .2, 2.4);
+    wash(g, gg => crescent(gg, cx + s * .28, cy - s * .27, s * .095, s * .05, -s * .035, s * .085), [246, 238, 214], r, phase(p, .45, .75), { x: cx + s * .28, y: cy - s * .28 }, s * .2, 2.4);
     const lp = phase(p, .6, 1);
     ink(g, [[wx, wy], [wx + ww, wy], [wx + ww, wy + wh], [wx, wy + wh], [wx, wy]], lp);
     ink(g, [[wx + ww / 2, wy], [wx + ww / 2, wy + wh]], lp); ink(g, [[wx, wy + wh / 2], [wx + ww, wy + wh / 2]], lp);

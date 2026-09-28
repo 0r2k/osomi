@@ -153,7 +153,7 @@ export function Opening({ pausa, onPausa, onUnlock }: { pausa: Pausa | null; onP
 
   // Una demanda de la escena interrumpe: se agita, suena y aparece como aviso ficticio.
   const { get } = sound;
-  const onDistract = useCallback(() => {
+  const onDistract = useCallback((intense: boolean) => {
     const list = bubbles.current;
     const index = Math.floor(Math.random() * list.length);
     const b = list[index];
@@ -163,6 +163,14 @@ export function Opening({ pausa, onPausa, onUnlock }: { pausa: Pausa | null; onP
     const key = performance.now();
     setToasts(list => [...list.filter(t => t.slot !== slot).slice(-1), { title: b.title, sub: b.sub, key, slot }]);
     window.setTimeout(() => setToasts(list => list.filter(t => t.key !== key)), 2600);
+      // Segunda secuencia: el propio panel tiembla con cada aviso (y el teléfono vibra, si lo permite).
+    if (intense && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      station.current?.animate([
+        { translate: '0 0', rotate: '0deg' }, { translate: '-10px 2px', rotate: '-.6deg' }, { translate: '9px -2px', rotate: '.5deg' },
+        { translate: '-7px 1px', rotate: '-.4deg' }, { translate: '5px 0', rotate: '.2deg' }, { translate: '0 0', rotate: '0deg' },
+      ], { duration: 460, easing: 'ease-in-out' });
+      navigator.vibrate?.(70);
+    }
   }, [get]);
 
   function release() {

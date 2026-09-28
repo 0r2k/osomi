@@ -67,6 +67,9 @@ export function Rhythms({ intencion, onIntencion, onUnlock, pausa }: { intencion
     earth.src = '/textures/earth-day.jpg';
     const state = control.current;
     earth.onload = () => { state.dirty = true; };
+    const sleeper = new Image();
+    sleeper.src = '/assets/persona-durmiendo.webp';
+    sleeper.onload = () => { state.dirty = true; };
     const copies = Array.from(stage.current!.querySelectorAll<HTMLElement>('.rhythm-copy'));
     const spotButtons = Array.from(spotLayer.current!.querySelectorAll<HTMLElement>('[data-spot]'));
     let width = 1, height = 1, s = 0, prev = -1, lastBand = '', first = true;
@@ -105,7 +108,7 @@ export function Rhythms({ intencion, onIntencion, onUnlock, pausa }: { intencion
 
       // Pasos mientras la persona se aleja caminando.
       if (!reduce && s > .12 && s < .98 && before >= 0 && Math.floor(s * 14 / Math.PI) !== Math.floor(before * 14 / Math.PI)) sound.get()?.footstep(-.3 - s * .5);
-      drawRhythms(g, { s, now, width, height, reduce, stars, bubbles, earth, target: handoff.earth });
+      drawRhythms(g, { s, now, width, height, reduce, stars, bubbles, earth, sleeper, target: handoff.earth });
       sound.get()?.update(0, 1, 1 - ramp(s, R.volume[0], R.volume[1]));
 
       copies.forEach((el, i) => { el.style.opacity = fade(s, ...copyRanges[i]).toFixed(3); });
