@@ -122,6 +122,31 @@ const sunVertex = /* glsl */`
   }
 `;
 
+const moonFragment = /* glsl */`
+  varying vec3 vNormal;
+  varying vec3 vWorld;
+  varying vec3 vLocal;
+  float hash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+  float noise(vec3 x) {
+    vec3 i = floor(x); vec3 f = fract(x); f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(mix(hash(i), hash(i + vec3(1,0,0)), f.x), mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
+               mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x), mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z);
+  }
+  void main() {
+    vec3 N = normalize(vNormal);
+    vec3 L = normalize(-vWorld);
+    vec3 p = normalize(vLocal);
+    float maria = smoothstep(.55, .7, noise(p * 2.6 + 3.0));
+    float craters = smoothstep(.72, .8, noise(p * 9.0)) * .5 + smoothstep(.78, .84, noise(p * 22.0)) * .35;
+    vec3 base = mix(vec3(.72, .71, .68), vec3(.42, .42, .44), maria);
+    base *= 1.0 - craters * .35;
+    float light = max(dot(N, L), 0.0);
+    vec3 color = base * (light * 1.25 + .025);
+    color = vec3(1.0) - exp(-color * 1.2);
+    gl_FragColor = vec4(pow(color, vec3(1.0 / 2.2)), 1.0);
+  }
+`;
+
 const starVertex = /* glsl */`
   attribute float size;
   attribute vec3 tint;
@@ -214,12 +239,18 @@ export function createCosmos(renderer: THREE.WebGLRenderer, onReady: () => void)
   const axis = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, -.8, 0), new THREE.Vector3(0, .8, 0)]), new THREE.LineBasicMaterial({ color: '#c9d4d8', transparent: true, opacity: .45 }));
   tilt.add(axis);
 
+  // Luna: gris con mares y cráteres procedurales; la ilumina el mismo Sol que a la Tierra.
+  const moonMaterial = new THREE.ShaderMaterial({ vertexShader: sunVertex, fragmentShader: moonFragment });
+  const moon = new THREE.Mesh(new THREE.SphereGeometry(.16, 48, 32), moonMaterial);
+  moon.position.set(1.15, 0, 0);
+  earth.add(moon);
+
   const sunUniforms = { time: { value: 0 } };
   const sun = new THREE.Mesh(new THREE.SphereGeometry(.9, 96, 64), new THREE.ShaderMaterial({ vertexShader: sunVertex, fragmentShader: sunFragment, uniforms: sunUniforms }));
   const stars = starField(renderer.getPixelRatio());
 
   return {
-    earth, spin, axis, sun, stars,
+    earth, spin, axis, sun, stars, moon,
     /** Avanza nubes y superficie solar sólo cuando la escena está en movimiento. */
     advance(ms: number) {
       sunUniforms.time.value += ms / 1000;

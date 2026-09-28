@@ -64,7 +64,7 @@ export default function P08Scene({ pausa, lead = 0, tail = 0, onSources }: { pau
     const orbit = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(orbitPoints), new THREE.LineBasicMaterial({ color: '#8fa3b4', transparent: true, opacity: .32 }));
     system.add(orbit);
     const cover = sunCover.current!.getContext('2d');
-    let width = 1, height = 1, visible = false, phase = -.62, lastChapter = -1;
+    let width = 1, height = 1, visible = false, phase = -.62, spinPhase = 0, moonPhase = .8, lastChapter = -1;
     let pointer: { id: number; x: number; y: number; horizontal: boolean } | null = null;
     const playhead = { p: 0 };
     const state = control.current;
@@ -108,7 +108,8 @@ export default function P08Scene({ pausa, lead = 0, tail = 0, onSources }: { pau
         pointer.horizontal = true; canvas.setPointerCapture(event.pointerId);
       }
       state.yaw += dx * .005;
-      if (event.pointerType !== 'touch') state.pitch = Math.max(-.2, Math.min(.4, state.pitch + dy * .003));
+      // Arriba y abajo: se puede mirar el sistema desde encima y también desde debajo del plano de la órbita.
+      if (event.pointerType !== 'touch') state.pitch = Math.max(-1.95, Math.min(.6, state.pitch + dy * .004));
       pointer.x = event.clientX; pointer.y = event.clientY; state.dirty = true;
     };
     const up = () => { if (pointer && canvas.hasPointerCapture(pointer.id)) canvas.releasePointerCapture(pointer.id); pointer = null; };
@@ -123,13 +124,22 @@ export default function P08Scene({ pausa, lead = 0, tail = 0, onSources }: { pau
       const autonomous = p >= .22 && p < .94 && !state.paused;
       if (!state.dirty && !autonomous) return;
       state.dirty = false;
-      if (autonomous) { phase = (phase + Math.min(delta, 40) * .00018) % TAU; cosmos.advance(Math.min(delta, 40)); }
+      if (autonomous) {
+        const dt = Math.min(delta, 40);
+        phase = (phase + dt * .00018) % TAU;
+        // La Tierra también gira sobre su eje (simplificado: unas once vueltas por órbita) y la Luna la rodea.
+        spinPhase = (spinPhase + dt * TAU / 3200) % TAU;
+        moonPhase = (moonPhase + dt * TAU / 9000) % TAU;
+        cosmos.advance(dt);
+      }
       const reveal = smooth(ramp(p, .22, .42));
       const align = smooth(ramp(p, .88, .97));
       const day = ramp(p, 0, .22);
       const angle = phase;
       earth.position.set(Math.cos(angle) * 4, 0, Math.sin(angle) * 4);
-      spin.rotation.y = 6.45 + day * (TAU + TAU / 365.25);
+      spin.rotation.y = 6.45 + day * (TAU + TAU / 365.25) + spinPhase;
+      cosmos.moon.position.set(Math.cos(moonPhase) * 1.15, Math.sin(moonPhase) * .08, Math.sin(moonPhase) * 1.15);
+      cosmos.moon.visible = reveal > .25;
       axis.visible = p < .42;
       orbit.visible = reveal > 0;
       target.copy(earth.position).multiplyScalar(1 - reveal);
@@ -216,7 +226,7 @@ export default function P08Scene({ pausa, lead = 0, tail = 0, onSources }: { pau
       <div className="p08-controls">
         <div className="p09-gate"><p>La Biblia da a este ritmo un significado particular.</p><p className="p09-six"><small>PERSPECTIVA BÍBLICA · ÉXODO 20:9–10</small>{sixDays[pausa ?? ''] ?? 'Seis días para todo lo que te ocupa.'} <em>Uno que no se mide en tareas.</em></p><p className="p09-more">Sigue bajando ↓</p></div>
         <div className="p08-orbit-controls"><button onClick={pause} aria-pressed={paused}>{paused ? 'Reanudar órbita' : 'Pausar órbita'}</button><button onClick={() => rotate(-.25)} aria-label="Girar perspectiva a la izquierda">←</button><button onClick={() => rotate(.25)} aria-label="Girar perspectiva a la derecha">→</button><button onClick={reset}>Restablecer vista</button></div>
-        <p className="p08-drag-hint">Arrastra a los lados para cambiar de perspectiva. Sigue bajando para continuar.</p>
+        <p className="p08-drag-hint">Arrastra para mirar desde cualquier ángulo, también desde arriba o desde abajo. Sigue bajando para continuar.</p>
         <p className="p08-scroll-hint">Desplázate para continuar ↓</p>
         <span>Tamaños, distancias y velocidad simplificados.</span><button className="p08-sources" onClick={onSources}>Explicación y fuentes</button>
       </div>

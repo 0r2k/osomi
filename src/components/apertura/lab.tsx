@@ -126,9 +126,9 @@ export function Lab({ active, onMode, onDistract, onRelease }: {
   if (phase.name === 'example') {
     const example: Shape[] = ['estrella', 'círculo', 'luna', 'cuadrado', 'rombo'];
     const steps = [
-      <><h2 ref={heading} tabIndex={-1}>1 · La tarea</h2><p>Se muestra una secuencia de cinco símbolos. Hay que recordarla y luego reconstruir el orden.</p><div className="lab-row">{example.map(s => <figure key={s}><Symbol shape={s} /><figcaption>{s}</figcaption></figure>)}</div></>,
+      <><h2 ref={heading} tabIndex={-1}>1 · La tarea</h2><p>Se muestra una secuencia de cinco símbolos. Hay que recordarla y luego reconstruir el orden.</p><div className="lab-row">{example.map((s, i) => <figure key={s} aria-label={s}><Symbol shape={s} /><figcaption>{i + 1}</figcaption></figure>)}</div></>,
       <><h2 ref={heading} tabIndex={-1}>2 · Llega una interrupción</h2><p>Mientras intentas recordar, aparece un aviso. Puedes mostrarlo cuando quieras.</p>{exampleInterrupted ? <div className="lab-toast-inline"><b>Jefe</b><span>¿tienes un minuto?</span></div> : <button onClick={() => setExampleInterrupted(true)}>Mostrar una interrupción</button>}</>,
-      <><h2 ref={heading} tabIndex={-1}>3 · Volver a la tarea</h2><p>Después de la interrupción hay que recordar dos cosas: la secuencia y hasta dónde ibas.</p><div className="lab-row">{example.map((s, i) => <figure key={s} className={i < 2 ? '' : 'lab-empty'}>{i < 2 ? <Symbol shape={s} /> : <span>?</span>}<figcaption>{i < 2 ? s : 'pendiente'}</figcaption></figure>)}</div></>,
+      <><h2 ref={heading} tabIndex={-1}>3 · Volver a la tarea</h2><p>Después de la interrupción hay que recordar dos cosas: la secuencia y hasta dónde ibas.</p><div className="lab-row">{example.map((s, i) => <figure key={s} className={i < 2 ? '' : 'lab-empty'}>{i < 2 ? <Symbol shape={s} /> : <span>?</span>}<figcaption>{i + 1}</figcaption></figure>)}</div></>,
       <><h2 ref={heading} tabIndex={-1}>4 · Lo que se compara</h2><p>En la actividad se cuentan los símbolos fuera de lugar y las veces que se usa «Deshacer» en cada una de las tres rondas. No se mide rapidez. Un resultado así describe un momento de juego, no tu salud ni tu capacidad.</p></>,
     ];
     return <div className="lab">
@@ -165,7 +165,8 @@ export function Lab({ active, onMode, onDistract, onRelease }: {
     {eyebrow}
     <p className="lab-step">{roundLabel}</p>
     <h2 ref={heading} tabIndex={-1}>Memoriza este orden.</h2>
-    <ol className="lab-row" aria-label="Secuencia para memorizar">{trial.sequence.map((s, i) => <li key={s}><Symbol shape={s} size={48} /><span>{i + 1}. {s}</span></li>)}</ol>
+    {/* Solo las figuras: sin nombres, para que haya que recordarlas de verdad. */}
+    <ol className="lab-row" aria-label="Secuencia para memorizar">{trial.sequence.map((s, i) => <li key={s} aria-label={`${i + 1}. ${s}`}><Symbol shape={s} size={52} /><span aria-hidden="true">{i + 1}</span></li>)}</ol>
     <div className="lab-actions"><button className="lab-primary" onClick={() => setPhase({ ...phase, name: 'recall' })}>Ya lo memoricé</button>{exit}</div>
   </div>;
 
@@ -179,10 +180,10 @@ export function Lab({ active, onMode, onDistract, onRelease }: {
       <ol className="lab-slots" aria-label="Tu respuesta">{trial.sequence.map((_, i) => {
         const shape = placed[i];
         const state = done ? (shape === trial.sequence[i] ? 'ok' : 'miss') : '';
-        return <li key={i} data-state={state}>{shape ? <><Symbol shape={shape} size={36} /><span>{shape}</span></> : <span className="lab-slot-empty">{i + 1}</span>}</li>;
+        return <li key={i} data-state={state} aria-label={shape ? `${i + 1}. ${shape}` : `${i + 1}. vacío`}>{shape ? <Symbol shape={shape} size={40} /> : <span className="lab-slot-empty">{i + 1}</span>}</li>;
       })}</ol>
       {done
-        ? <><p className="lab-answer">Orden original: {trial.sequence.join(' · ')}.</p><div className="lab-actions"><button className="lab-primary" onClick={next}>Continuar</button>{exit}</div></>
+        ? <><div className="lab-answer"><span>Orden original:</span><ol className="lab-mini" aria-label={`Orden original: ${trial.sequence.join(', ')}`}>{trial.sequence.map(s => <li key={s}><Symbol shape={s} size={24} /></li>)}</ol></div><div className="lab-actions"><button className="lab-primary" onClick={next}>Continuar</button>{exit}</div></>
         : <>
           <div className="lab-palette" role="group" aria-label="Símbolos disponibles">{trial.palette.map(s =>
             <button key={s} disabled={placed.includes(s) || placed.length >= LENGTH} onClick={() => setPlaced(p => [...p, s])}><Symbol shape={s} size={34} /><span>{s}</span></button>)}

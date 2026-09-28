@@ -123,3 +123,7 @@
 .opening-scrim{position:absolute;inset:0;z-index:1;background:radial-gradient(ellipse at 50% 45%,#10182acc,#10182ae6);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:opacity .5s ease}
 .opening-stage[data-lab=true] .opening-scrim{opacity:1}
 .opening-station[data-step=lab]{background:#faf8f3;box-shadow:0 30px 90px #0009}
+.lab-answer{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.lab-mini{display:flex;gap:6px;list-style:none;margin:0;padding:0}
+.lab-mini li{display:grid;place-items:center;width:34px;height:34px;border-radius:8px;background:#efe9df}
+.lab-row li span{font:12px 'Avenir Next',sans-serif;color:#7a6a48}
